@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import User from './model/userModel.js'
 import dbconnect from './config/database.js'
 import adminRoute from './routes/adminRoutes.js';
+import userRoute from './routes/userRoutes.js'
 import http from 'http'
 
 dotenv.config();
@@ -17,6 +18,7 @@ app.use(cors({
     credentials:true
 }));
 app.use('/admin',adminRoute);
+app.use('/',userRoute);
 
 const server = http.createServer(app);
 server.listen(3005,()=>console.log('App working on port 3005'))

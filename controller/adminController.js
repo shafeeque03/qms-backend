@@ -2,10 +2,12 @@ import express from "express";
 import User from "../model/userModel.js";
 import Jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { serialize } from "cookie";
 
 export const adminLogin = async (req, res) => {
   try {
     const { id, password } = req.body;
+    console.log("okokokoko")
     const adminId = process.env.ADMIN_ID;
     const adminPassword = process.env.ADMIN_PASSWORD;
     if (id == adminId) {
@@ -19,7 +21,18 @@ export const adminLogin = async (req, res) => {
             expiresIn: "3h",
           }
         );
-        return res.status(200).json({ token, message: "Login Verified" });
+        res.setHeader(
+            "Set-Cookie",
+            serialize("adminToken", token, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "strict",
+              maxAge: 3600, // 1 hour
+              path: "/",
+            })
+          );
+          const admin = {name:"admin"}
+        return res.status(200).json({ admin,token, message: "Login Verified" });
       } else {
         return res.status(403).json({ message: "Incorrect Password" });
       }
@@ -46,7 +59,7 @@ export const addUser = async (req, res) => {
   try {
     const { userName, email, phone, loginId, password } = req.body;
     const encryptedPassword = await securePassword(password);
-    await User.create({
+    const user = await User.create({
       name: userName,
       email,
       phone,
@@ -140,5 +153,6 @@ export const updateUserPassword = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 //
