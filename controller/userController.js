@@ -1,13 +1,97 @@
-// // // backend - controllers/userController.js
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { serialize } from "cookie";
-import User from "../model/userModel.js"; // Replace with your actual user model
+import User from "../model/userModel.js";
+import Client from "../model/clientModel.js";
+import Quotation from "../model/quotationModel.js"
 
-// // Login controller
+
+export const filteredData = async (req, res) => {
+  try {
+    const {
+      searchTerm,
+      startDate,
+      endDate,
+      sortBy,
+      sortOrder,
+      page = 1,
+      limit = 4,
+      user,
+    } = req.query;
+
+    const userId = user._id;
+
+    // Initialize filter with `createdBy` filter
+    const filter = { createdBy: userId };
+
+    // Apply search term filtering for `quotationId`
+    if (searchTerm) {
+      const numericSearchTerm = parseInt(searchTerm, 10);
+      if (!isNaN(numericSearchTerm)) {
+        filter.quotationId = numericSearchTerm;
+      }
+    }
+
+    // Apply date filtering for `expireDate`
+    if (startDate && endDate) {
+      filter.expireDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+
+    // Sort options
+    const sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+    }
+
+    // Pagination calculations
+    const skip = (page - 1) * limit;
+
+    // Fetch filtered and paginated quotations
+    const quotations = await Quotation.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate("products.product")
+      .populate("services.service")
+      .populate("createdBy")
+      .populate("client");
+
+    // Get total count of quotations for the filter
+    const totalCount = await Quotation.countDocuments(filter);
+
+    // Response with pagination details
+    res.status(200).json({
+      data: quotations,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+export const verifyToken = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    res.status(401).json({ message: "Invalid or expired token" });
+  }
+};
+
 export const loginUser = async (req, res) => {
   try {
-      const { loginId,password } = req.body;
+    const { loginId, password } = req.body;
     const user = await User.findOne({ loginId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -32,19 +116,18 @@ export const loginUser = async (req, res) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        maxAge: 3600, // 1 hour
+        maxAge: 3600,
         path: "/",
       })
     );
 
-    res.status(200).json({ user, message: `Welcome ${user.name}`,token });
+    res.status(200).json({ user, message: `Welcome ${user.name}`, token });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Logout controller
 export const logoutUser = (req, res) => {
   res.setHeader(
     "Set-Cookie",
@@ -60,17 +143,26 @@ export const logoutUser = (req, res) => {
   res.status(200).json({ message: "Logged out successfully" });
 };
 
-export const verifyToken = (req, res, next) => {
-  const token = req.cookies.token;
-  if (!token) {
-    return res.status(401).json({ message: "No token provided" });
-  }
+export const addClient = async (req, res) => {
+  const { value } = req.body;
+  let client = await Client.create({
+    name: value.name,
+    email: value.email,
+    address: value.address,
+    phone: value.phone,
+  });
+  res.status(200).json({ client, message: "Client added" });
+};
 
+export const getClients = async (req, res) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
+    const clients = await Client.find({})
+  .collation({ locale: "en", strength: 1 })
+  .sort({ name: 1 }); 
+    res.status(200).json({ clients });
   } catch (error) {
-    res.status(401).json({ message: "Invalid or expired token" });
+    console.error(error.message);
+    res.status(500).json({ status: "Internal Server Error" });
   }
 };
+

@@ -10,6 +10,10 @@ const QuotationSchema = new mongoose.Schema({
         quantity: {
             type: Number,
             required: true
+        },
+        price: {
+            type: Number,
+            required: true
         }
     }],
     services: [{
@@ -17,19 +21,23 @@ const QuotationSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'service',
             required: true
+        },
+        price: {
+            type: Number,
+            required: true
         }
     }],
-    description: {
+    quotationId:{
+        type: Number,
+        required: true
+    },
+    cancelReason: {
         type: String,
         default: ''
     },
     totalAmount: {
         type: Number,
         required: true
-    },
-    createdDate: {
-        type: Date,
-        default: Date.now
     },
     expireDate: {
         type: Date,

@@ -1,5 +1,6 @@
-import express from "express";
 import User from "../model/userModel.js";
+import Client from "../model/clientModel.js"
+import Quotation from "../model/quotationModel.js"
 import Jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { serialize } from "cookie";
@@ -7,7 +8,6 @@ import { serialize } from "cookie";
 export const adminLogin = async (req, res) => {
   try {
     const { id, password } = req.body;
-    console.log("okokokoko")
     const adminId = process.env.ADMIN_ID;
     const adminPassword = process.env.ADMIN_PASSWORD;
     if (id == adminId) {
@@ -75,13 +75,41 @@ export const addUser = async (req, res) => {
 
 export const getUser = async (req, res) => {
   try {
-    const users = await User.find({}).sort({ createdAt: -1 });
-    res.status(200).json({ users });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";  // Retrieve search query from request
+
+    // Build the search query condition
+    const searchCondition = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },  // Search by username (case-insensitive)
+            { email: { $regex: search, $options: "i" } },     // Search by email (case-insensitive)
+            { loginId: { $regex: search, $options: "i" } },    // Search by loginId (case-insensitive)
+          ],
+        }
+      : {};
+
+    const users = await User.find(searchCondition)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalUsers = await User.countDocuments(searchCondition);  // Count users matching the search condition
+    res.status(200).json({
+      users,
+      currentPage: page,
+      totalPagess: Math.ceil(totalUsers / limit),
+      totalUsers,
+    });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({ status: "Internal Server Error" });
   }
 };
+
+
 
 export const getUserDetails = async (req, res) => {
   try {
@@ -154,5 +182,132 @@ export const updateUserPassword = async (req, res) => {
   }
 };
 
+export const getClients = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || "";  // Retrieve search query from request
 
-//
+    // Build the search query condition
+    const searchCondition = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },  // Search by username (case-insensitive)
+            { email: { $regex: search, $options: "i" } },     // Search by email (case-insensitive)
+          ],
+        }
+      : {};
+
+    const users = await Client.find(searchCondition)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalUsers = await Client.countDocuments(searchCondition);  // Count users matching the search condition
+    res.status(200).json({
+      users,
+      currentPage: page,
+      totalPagess: Math.ceil(totalUsers / limit),
+      totalUsers,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "Internal Server Error" });
+  }
+};
+
+export const getQuotations = async(req,res)=>{
+  try {
+    const quotation = await Quotation.find({}).sort({ createdAt: -1 });
+    res.status(200).json({ quotation }); 
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });    
+  }
+}
+
+export const getAllUsers = async(req,res)=>{
+  try {
+    let users = await User.find({});
+    res.status(200).json({users})
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export const getAllClients = async(req,res)=>{
+  try {
+    let clients = await Client.find({});
+    res.status(200).json({clients})
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export const filteredQuotation = async (req, res) => {
+  try {
+    const {
+      searchTerm,
+      startDate,
+      endDate,
+      sortBy,
+      sortOrder,
+      page = 1,
+      limit = 4,
+    } = req.query;
+
+
+
+    // Initialize filter with `createdBy` filter
+    const filter = {};
+
+    // Apply search term filtering for `quotationId`
+    if (searchTerm) {
+      const numericSearchTerm = parseInt(searchTerm, 10);
+      if (!isNaN(numericSearchTerm)) {
+        filter.quotationId = numericSearchTerm;
+      }
+    }
+
+    // Apply date filtering for `expireDate`
+    if (startDate && endDate) {
+      filter.expireDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+
+    // Sort options
+    const sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+    }
+
+    // Pagination calculations
+    const skip = (page - 1) * limit;
+
+    // Fetch filtered and paginated quotations
+    const quotations = await Quotation.find(filter)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate("products.product")
+      .populate("services.service")
+      .populate("createdBy")
+      .populate("client");
+
+    // Get total count of quotations for the filter
+    const totalCount = await Quotation.countDocuments(filter);
+
+    // Response with pagination details
+    res.status(200).json({
+      data: quotations,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
