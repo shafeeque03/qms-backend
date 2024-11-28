@@ -1,4 +1,5 @@
 import User from "../model/userModel.js";
+import Admin from "../model/adminModel.js"
 import Client from "../model/clientModel.js"
 import Quotation from "../model/quotationModel.js"
 import Jwt from "jsonwebtoken";
@@ -8,40 +9,38 @@ import { serialize } from "cookie";
 export const adminLogin = async (req, res) => {
   try {
     const { id, password } = req.body;
-    const adminId = process.env.ADMIN_ID;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (id == adminId) {
-      if (adminPassword == password) {
-        const token = Jwt.sign(
-          {
-            role: "admin",
-          },
-          process.env.ADMIN_SECRET,
-          {
-            expiresIn: "3h",
-          }
-        );
-        res.setHeader(
-            "Set-Cookie",
-            serialize("adminToken", token, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "strict",
-              maxAge: 3600, // 1 hour
-              path: "/",
-            })
-          );
-          const admin = {name:"admin"}
-        return res.status(200).json({ admin,token, message: "Login Verified" });
-      } else {
-        return res.status(403).json({ message: "Incorrect Password" });
-      }
-    } else {
-      return res.status(401).json({ message: "Incorrect Login ID" });
+    const admin = await Admin.findOne({ email:id });
+    if (!admin) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    const token = Jwt.sign(
+      { name: admin.name, email: admin.email, id: admin._id, role: "admin" },
+      process.env.SECRET_KEY,
+      {
+        expiresIn: "1h",
+      }
+    );
+
+    res.setHeader(
+      "Set-Cookie",
+      serialize("userToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 3600,
+        path: "/",
+      })
+    );
+
+    res.status(200).json({ admin, message: `Welcome ${admin.name}`, token });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({ status: "Internal Server Error" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -57,7 +56,7 @@ const securePassword = async (password) => {
 
 export const addUser = async (req, res) => {
   try {
-    const { userName, email, phone, loginId, password } = req.body;
+    const { userName, email, phone, loginId, password,admin } = req.body;
     const encryptedPassword = await securePassword(password);
     const user = await User.create({
       name: userName,
@@ -65,7 +64,9 @@ export const addUser = async (req, res) => {
       phone,
       loginId,
       password: encryptedPassword,
+      adminIs:admin._id
     });
+    await user.save();
     res.status(201).json({ message: "User added successfully" });
   } catch (error) {
     console.error(error.message);
@@ -78,29 +79,38 @@ export const getUser = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const search = req.query.search || "";  // Retrieve search query from request
+    const search = req.query.search || "";
+    const admin_id = req.query.adminId;
+
+    if (!admin_id) {
+      return res.status(400).json({ status: "Bad Request", message: "Admin ID is required" });
+    }
 
     // Build the search query condition
-    const searchCondition = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },  // Search by username (case-insensitive)
-            { email: { $regex: search, $options: "i" } },     // Search by email (case-insensitive)
-            { loginId: { $regex: search, $options: "i" } },    // Search by loginId (case-insensitive)
-          ],
-        }
-      : {};
+    const searchCondition = {
+      adminIs: admin_id, // Filter by admin_id
+      ...(search
+        ? {
+            $or: [
+              { name: { $regex: search, $options: "i" } }, // Search by username (case-insensitive)
+              { email: { $regex: search, $options: "i" } }, // Search by email (case-insensitive)
+              { loginId: { $regex: search, $options: "i" } }, // Search by loginId (case-insensitive)
+            ],
+          }
+        : {}),
+    };
 
     const users = await User.find(searchCondition)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const totalUsers = await User.countDocuments(searchCondition);  // Count users matching the search condition
+    const totalUsers = await User.countDocuments(searchCondition); // Count users matching the search condition
+
     res.status(200).json({
       users,
       currentPage: page,
-      totalPagess: Math.ceil(totalUsers / limit),
+      totalPages: Math.ceil(totalUsers / limit),
       totalUsers,
     });
   } catch (error) {

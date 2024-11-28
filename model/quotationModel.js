@@ -57,6 +57,11 @@ const QuotationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'client',
         required: true
+    },
+    adminIs: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'admin',
+        required: true
     }
 }, { timestamps: true });
 

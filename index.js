@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import User from './model/userModel.js'
 import dbconnect from './config/database.js'
 import adminRoute from './routes/adminRoutes.js';
 import userRoute from './routes/userRoutes.js'
+import hosterRoute from './routes/hosterRoutes.js';
 import http from 'http'
 
 dotenv.config();
@@ -17,8 +17,9 @@ app.use(cors({
     methods:['GET','POST','PUT','PATCH'],
     credentials:true
 }));
-app.use('/admin',adminRoute);
 app.use('/',userRoute);
+app.use('/admin',adminRoute);
+app.use('/hoster',hosterRoute);
 
 const server = http.createServer(app);
 server.listen(3005,()=>console.log('App working on port 3005'))

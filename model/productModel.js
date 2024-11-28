@@ -12,7 +12,12 @@ const ProductSchema = new mongoose.Schema({
       price: {
         type: Number,
         required: true
-      },    
+      },
+      adminIs: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'admin',
+        required: true
+    }    
 });
 
 export default mongoose.model('product',ProductSchema)

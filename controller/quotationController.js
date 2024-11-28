@@ -32,7 +32,7 @@ export const createQuotation = async (req, res) => {
       await product.save();
     }
 
-    const qtnId = (await Quotation.find({}).countDocuments()) + 1;
+    const qtnId = (await Quotation.find({}).countDocuments()) + 1000;
 
     const newQuotation = new Quotation({
       products,

@@ -13,6 +13,11 @@ const ServiceSchema = new mongoose.Schema({
         type: Boolean,
         default:true
       },
+      adminIs: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'admin',
+        required: true
+    }
 
       
       

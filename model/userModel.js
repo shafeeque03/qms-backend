@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default:false
       },
+      adminIs: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'admin',
+        required: true
+    }
       
       
 },{timestamps:true});

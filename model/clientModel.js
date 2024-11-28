@@ -16,6 +16,11 @@ const ClientSchema = new mongoose.Schema({
     phone: {
         type: Number,
         required: true
+    },
+    adminIs: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'admin',
+        required: true
     }
 }, { timestamps: true });
 
