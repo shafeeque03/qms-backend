@@ -6,26 +6,72 @@ import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js"
 import Jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import mongoose from "mongoose";
 import { serialize } from "cookie";
 
 
-export const dashboardData = async(req,res)=>{
+export const dashboardData = async (req, res) => {
   try {
-    const{adminId} = req.params;
-    const totalQuotations = await Quotation.find({adminIs:adminId}).countDocuments();
-    const totalUsers = await User.find({adminIs:adminId});
-    const totalProducts = await Product.find({adminIs:adminId});
-    const totalServices = await Service.find({adminIs:adminId});
+    const { adminId } = req.query;
+    if (!adminId) {
+      return res.status(401).json({ message: "Invalid adminId" });
+    }
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Revenue data for the last 7 days
+    const last7DaysRevenue = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+          approvedOn: { $gte: sevenDaysAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$approvedOn" }, // Group by day
+          },
+          totalAmount: { $sum: "$totalAmount" },
+        },
+      },
+      {
+        $sort: { _id: 1 }, // Sort by date ascending
+      },
+    ]);
+
+    const totalQuotations = await Quotation.find({
+      adminIs: adminId,
+    }).countDocuments();
+    const totalUsers = await User.find({
+      adminIs: adminId,
+    }).countDocuments();
+    const totalProducts = await Product.find({
+      adminIs: adminId,
+    }).countDocuments();
+    const totalServices = await Service.find({
+      adminIs: adminId,
+    }).countDocuments();
+
+    res.status(200).json({
+      totalQuotations,
+      totalUsers,
+      totalProducts,
+      totalServices,
+      last7DaysRevenue,
+    });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({ message: "Server error" });    
+    res.status(500).json({ message: "Server error" });
   }
-}
+};
+
 
 export const adminLogin = async (req, res) => {
   try {
     const { id, password } = req.body;
-    console.log(id,password,"opop")
     const admin = await Admin.findOne({ email:id });
     if (!admin) {
       return res.status(404).json({ message: "User not found" });
@@ -41,7 +87,7 @@ export const adminLogin = async (req, res) => {
     }
     const token = Jwt.sign(
       { name: admin.name, email: admin.email, id: admin._id, role: "admin" },
-      process.env.SECRET_KEY,
+      process.env.ADMIN_SECRET,
       {
         expiresIn: "1h",
       }

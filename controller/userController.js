@@ -94,6 +94,7 @@ export const verifyToken = (req, res, next) => {
 export const loginUser = async (req, res) => {
   try {
     const { loginId, password } = req.body;
+    console.log(loginId,password,"ju")
     const user = await User.findOne({ loginId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -114,17 +115,6 @@ export const loginUser = async (req, res) => {
       {
         expiresIn: "1h",
       }
-    );
-
-    res.setHeader(
-      "Set-Cookie",
-      serialize("userToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 3600,
-        path: "/",
-      })
     );
 
     res.status(200).json({ user, message: `Welcome ${user.name}`, token });

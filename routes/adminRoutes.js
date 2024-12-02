@@ -12,7 +12,8 @@ import {
   getAllUsers,
   getAllClients,
   filteredQuotation,
-  filteredQuotationDownload
+  filteredQuotationDownload,
+  dashboardData
 } from "../controller/adminController.js";
 import {
   addProduct,
@@ -50,4 +51,7 @@ adminRoute.get("/getAllUsers/:adminId", getAllUsers);
 //quotationControlls   
 adminRoute.get("/filteredQuotation", filteredQuotation);    
 adminRoute.get("/downloadQuotation",filteredQuotationDownload);
+
+//dashboardControlls
+adminRoute.get('/dashboardData',dashboardData)
 export default adminRoute;

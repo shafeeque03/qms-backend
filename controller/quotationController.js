@@ -70,6 +70,9 @@ export const changeQtnStatus = async (req, res) => {
       if (status === "rejected") {
         quotation.cancelReason = reason;
       }
+      if(status==="accepted"){
+        quotation.approvedOn = new Date();
+      }
   
       await quotation.save();
   

@@ -62,7 +62,10 @@ const QuotationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'admin',
         required: true
-    }
+    },
+    approvedOn: {
+        type: Date,
+    },
 }, { timestamps: true });
 
 export default mongoose.model('quotation', QuotationSchema);
