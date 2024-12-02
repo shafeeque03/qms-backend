@@ -4,6 +4,8 @@ import { serialize } from "cookie";
 import User from "../model/userModel.js";
 import Client from "../model/clientModel.js";
 import Quotation from "../model/quotationModel.js"
+import Product from "../model/productModel.js"
+import Service from "../model/serviceModel.js"
 
 
 export const filteredData = async (req, res) => {
@@ -97,6 +99,10 @@ export const loginUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    if(user.is_blocked){
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -144,14 +150,15 @@ export const logoutUser = (req, res) => {
 };
 
 export const addClient = async (req, res) => {
-  const { value } = req.body;
+  const { value,adminId } = req.body;
   let client = await Client.create({
     name: value.name,
     email: value.email,
     address: value.address,
     phone: value.phone,
+    adminIs:adminId
   });
-  res.status(200).json({ client, message: "Client added" });
+  res.status(201).json({ client, message: "Client added" });
 };
 
 export const getClients = async (req, res) => {
@@ -165,4 +172,12 @@ export const getClients = async (req, res) => {
     res.status(500).json({ status: "Internal Server Error" });
   }
 };
+
+export const getProAndSer = async(req,res)=>{
+  const{adminId} = req.params;
+  let products = await Product.find({adminIs:adminId})||[];
+  let services = await Service.find({adminIs:adminId})||[];
+  res.status(200).json({products,services})
+
+}
 

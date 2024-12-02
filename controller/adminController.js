@@ -2,16 +2,37 @@ import User from "../model/userModel.js";
 import Admin from "../model/adminModel.js"
 import Client from "../model/clientModel.js"
 import Quotation from "../model/quotationModel.js"
+import Product from "../model/productModel.js";
+import Service from "../model/serviceModel.js"
 import Jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { serialize } from "cookie";
 
+
+export const dashboardData = async(req,res)=>{
+  try {
+    const{adminId} = req.params;
+    const totalQuotations = await Quotation.find({adminIs:adminId}).countDocuments();
+    const totalUsers = await User.find({adminIs:adminId});
+    const totalProducts = await Product.find({adminIs:adminId});
+    const totalServices = await Service.find({adminIs:adminId});
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });    
+  }
+}
+
 export const adminLogin = async (req, res) => {
   try {
     const { id, password } = req.body;
+    console.log(id,password,"opop")
     const admin = await Admin.findOne({ email:id });
     if (!admin) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if(admin.isBlocked){
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
@@ -56,23 +77,44 @@ const securePassword = async (password) => {
 
 export const addUser = async (req, res) => {
   try {
-    const { userName, email, phone, loginId, password,admin } = req.body;
+    const { userName, email, phone, loginId, password, admin } = req.body;
+
+    // Validate input data
+    if (!userName || !email || !phone || !loginId || !password || !admin) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Check if email or loginId already exists
+    const existingUser = await User.findOne({
+      $or: [{ email }, { loginId }]
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ 
+        message: "User with the same email or login ID already exists" 
+      });
+    }
+
+    // Encrypt password
     const encryptedPassword = await securePassword(password);
+
+    // Create and save new user
     const user = await User.create({
       name: userName,
       email,
       phone,
       loginId,
       password: encryptedPassword,
-      adminIs:admin._id
+      adminIs: admin._id
     });
-    await user.save();
-    res.status(201).json({ message: "User added successfully" });
+
+    res.status(201).json({ message: "User added successfully", user });
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({ status: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 export const getUser = async (req, res) => {
   try {
@@ -85,31 +127,23 @@ export const getUser = async (req, res) => {
     if (!admin_id) {
       return res.status(400).json({ status: "Bad Request", message: "Admin ID is required" });
     }
+    const query = { adminIs: admin_id };
 
-    // Build the search query condition
-    const searchCondition = {
-      adminIs: admin_id, // Filter by admin_id
-      ...(search
-        ? {
-            $or: [
-              { name: { $regex: search, $options: "i" } }, // Search by username (case-insensitive)
-              { email: { $regex: search, $options: "i" } }, // Search by email (case-insensitive)
-              { loginId: { $regex: search, $options: "i" } }, // Search by loginId (case-insensitive)
-            ],
-          }
-        : {}),
-    };
+    if(search){
+      query.name = { $regex: `^${search}`, $options: "i" };
+    }
 
-    const users = await User.find(searchCondition)
+    const totalUsers = await User.countDocuments(query); // Count users matching the search conditio
+
+    const users = await User.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(parseInt(limit));
 
-    const totalUsers = await User.countDocuments(searchCondition); // Count users matching the search condition
 
     res.status(200).json({
       users,
-      currentPage: page,
+      currentPage: parseInt(page),
       totalPages: Math.ceil(totalUsers / limit),
       totalUsers,
     });
@@ -131,18 +165,6 @@ export const getUserDetails = async (req, res) => {
   }
 };
 
-export const searchUserData = async (req, res) => {
-  try {
-    const { value } = req.params;
-    const filteredUsers = await User.find({
-      name: { $regex: `^${value}`, $options: "i" },
-    });
-    res.status(200).json({ filteredUsers });
-  } catch (error) {
-    console.log(error.message);
-    res.status(500).json({ message: "Error fetching users" });
-  }
-};
 
 export const updateUserData = async (req, res) => {
   try {
@@ -157,6 +179,7 @@ export const updateUserData = async (req, res) => {
         email: values.email,
         phone: values.phone,
         loginId: values.loginId,
+        is_blocked:values.isBlocked
       },
       { new: true }
     );
@@ -166,7 +189,7 @@ export const updateUserData = async (req, res) => {
     }
     res
       .status(200)
-      .json({ message: "User details updated successfully", user });
+      .json({ message: "User details updated", user });
   } catch (error) {
     console.error("Error updating user:", error.message);
     res.status(500).json({ message: "Internal server error" });
@@ -178,6 +201,9 @@ export const updateUserPassword = async (req, res) => {
     const { userId, password } = req.body;
     if (password.newPassword != password.confirmPassword) {
       return res.status(403).json({ message: "Passwords do not match" });
+    }
+    if(password.newPassword.trim()==''){
+      return res.status(403).json({ message: "Please Enter a valid password" });
     }
     const encryptedPassword = await securePassword(password.newPassword);
     await User.findByIdAndUpdate(
@@ -192,22 +218,27 @@ export const updateUserPassword = async (req, res) => {
   }
 };
 
+
+
 export const getClients = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const search = req.query.search || "";  // Retrieve search query from request
+    const search = req.query.search || ""; 
+    const adminId = req.query.adminId
+     // Retrieve search query from request
 
     // Build the search query condition
-    const searchCondition = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },  // Search by username (case-insensitive)
-            { email: { $regex: search, $options: "i" } },     // Search by email (case-insensitive)
-          ],
-        }
-      : {};
+
+    const searchCondition = { adminIs: adminId }; // Correct field name should match your schema
+    if (search) {
+      searchCondition.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+    
 
     const users = await Client.find(searchCondition)
       .sort({ createdAt: -1 })
@@ -227,19 +258,11 @@ export const getClients = async (req, res) => {
   }
 };
 
-export const getQuotations = async(req,res)=>{
-  try {
-    const quotation = await Quotation.find({}).sort({ createdAt: -1 });
-    res.status(200).json({ quotation }); 
-  } catch (error) {
-    console.error("Error updating user:", error.message);
-    res.status(500).json({ message: "Internal server error" });    
-  }
-}
 
 export const getAllUsers = async(req,res)=>{
   try {
-    let users = await User.find({});
+    const{adminId} = req.params
+    let users = await User.find({adminIs:adminId});
     res.status(200).json({users})
   } catch (error) {
     console.error("Error updating user:", error.message);
@@ -249,7 +272,8 @@ export const getAllUsers = async(req,res)=>{
 
 export const getAllClients = async(req,res)=>{
   try {
-    let clients = await Client.find({});
+    const{adminId} = req.params
+    let clients = await Client.find({adminIs:adminId});
     res.status(200).json({clients})
   } catch (error) {
     console.error("Error updating user:", error.message);
@@ -267,12 +291,13 @@ export const filteredQuotation = async (req, res) => {
       sortOrder,
       page = 1,
       limit = 4,
+      adminId
     } = req.query;
 
 
 
     // Initialize filter with `createdBy` filter
-    const filter = {};
+    const filter = {adminIs:adminId};
 
     // Apply search term filtering for `quotationId`
     if (searchTerm) {
@@ -301,11 +326,6 @@ export const filteredQuotation = async (req, res) => {
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate("products.product")
-      .populate("services.service")
-      .populate("createdBy")
-      .populate("client");
-
     // Get total count of quotations for the filter
     const totalCount = await Quotation.countDocuments(filter);
 
@@ -321,3 +341,46 @@ export const filteredQuotation = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+export const filteredQuotationDownload = async (req, res) => {
+  try {
+    const {
+      searchTerm,
+      startDate,
+      endDate,
+      sortBy,
+      sortOrder,
+      adminId
+    } = req.query;
+
+    const filter = {adminIs:adminId};
+
+    if (searchTerm) {
+      const numericSearchTerm = parseInt(searchTerm, 10);
+      if (!isNaN(numericSearchTerm)) {
+        filter.quotationId = numericSearchTerm;
+      }
+    }
+
+    if (startDate && endDate) {
+      filter.expireDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+
+    const sortOptions = {};
+    if (sortBy) {
+      sortOptions[sortBy] = sortOrder === "asc" ? 1 : -1;
+    }
+
+
+    const quotations = await Quotation.find(filter)
+      .sort(sortOptions)
+
+    console.log(quotations,"heyy")
+    res.status(200).json({quotations});
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+

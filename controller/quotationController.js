@@ -13,7 +13,8 @@ export const createQuotation = async (req, res) => {
       expireDate,
       client,
       createdBy,
-    } = req.body.quotationData;
+      adminId
+    } = req.body;
     if(products.length==0 && services.length==0){
       return res.status(400).json({ message:"Please Select Product or Service"});
     }
@@ -42,6 +43,7 @@ export const createQuotation = async (req, res) => {
       client,
       createdBy,
       quotationId: qtnId,
+      adminIs:adminId
     });
 
     await newQuotation.save();
@@ -101,6 +103,10 @@ export const quotationDetails = async (req, res) => {
         .populate({
           path: "client",
           select: "name email",
+        })
+        .populate({
+          path: "adminIs",
+          select: "name email phone address"
         });
   
       res.status(200).json({ quotation });

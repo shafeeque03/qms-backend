@@ -6,46 +6,48 @@ import {
   adminLogin,
   getUser,
   getUserDetails,
-  searchUserData,
   updateUserData,
   updateUserPassword,
   getClients,
-  getQuotations,
   getAllUsers,
   getAllClients,
-  filteredQuotation
+  filteredQuotation,
+  filteredQuotationDownload
 } from "../controller/adminController.js";
 import {
   addProduct,
   addService,
-  getAllData,
+  downloadPDF,
   editProduct,
   editService,
+  getProducts,
+  getServices,
 } from "../controller/proAndSerController.js";
+
 
 //userControlls
 adminRoute.post("/addUser", addUser);
 adminRoute.post("/login", adminLogin);
 adminRoute.get("/getUser", getUser);
 adminRoute.get("/userDetails/:userId", getUserDetails);
-adminRoute.get("/searchUser/:value", searchUserData);
 adminRoute.patch("/updateUser", updateUserData);
 adminRoute.patch("/changeUserPassword", updateUserPassword);
 
-//productControlls
+//productAndServiceControlls
 adminRoute.post("/addProduct", addProduct);
 adminRoute.post("/addService", addService);
-adminRoute.get("/getProAndSer", getAllData);
 adminRoute.patch("/editProduct", editProduct);
 adminRoute.patch("/editService", editService);
+adminRoute.get("/getProducts",getProducts)
+adminRoute.get("/getServices",getServices)
+adminRoute.get('/downloadSerOrPro',downloadPDF)
 
 //clientControlls
 adminRoute.get("/getClients", getClients);
-adminRoute.get("/getAllClients", getAllClients);
-adminRoute.get("/getAllUsers", getAllUsers);
+adminRoute.get("/getAllClients/:adminId", getAllClients);
+adminRoute.get("/getAllUsers/:adminId", getAllUsers);
 
-//quotationControlls
-adminRoute.get("/getQuotations", getQuotations);    
+//quotationControlls   
 adminRoute.get("/filteredQuotation", filteredQuotation);    
-
+adminRoute.get("/downloadQuotation",filteredQuotationDownload);
 export default adminRoute;
