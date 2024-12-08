@@ -16,11 +16,7 @@ import {
   dashboardData
 } from "../controller/adminController.js";
 import {
-  addProduct,
-  addService,
   downloadPDF,
-  editProduct,
-  editService,
   getProducts,
   getServices,
 } from "../controller/proAndSerController.js";
@@ -35,10 +31,7 @@ adminRoute.patch("/updateUser", updateUserData);
 adminRoute.patch("/changeUserPassword", updateUserPassword);
 
 //productAndServiceControlls
-adminRoute.post("/addProduct", addProduct);
-adminRoute.post("/addService", addService);
-adminRoute.patch("/editProduct", editProduct);
-adminRoute.patch("/editService", editService);
+
 adminRoute.get("/getProducts",getProducts)
 adminRoute.get("/getServices",getServices)
 adminRoute.get('/downloadSerOrPro',downloadPDF)

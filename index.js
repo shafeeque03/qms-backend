@@ -7,6 +7,8 @@ import userRoute from './routes/userRoutes.js'
 import hosterRoute from './routes/hosterRoutes.js';
 import http from 'http'
 
+const port = 5555
+
 dotenv.config();
 dbconnect();
 let app = express();
@@ -22,6 +24,6 @@ app.use('/admin',adminRoute);
 app.use('/hoster',hosterRoute);
 
 const server = http.createServer(app);
-server.listen(3005,()=>console.log('App working on port 3005'))
+server.listen(port,()=>console.log(`App working on port ${port}`))
 
 

@@ -2,9 +2,12 @@ import mongoose from "mongoose";
 
 const QuotationSchema = new mongoose.Schema({
     products: [{
-        product: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'product',
+        name: {
+            type: String,
+            required:true
+        },
+        description:{
+            type: String,
             required: true
         },
         quantity: {
@@ -17,9 +20,12 @@ const QuotationSchema = new mongoose.Schema({
         }
     }],
     services: [{
-        service: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'service',
+        name: {
+            type: String,
+            required: true
+        },
+        description: {
+            type: String,
             required: true
         },
         price: {
@@ -37,7 +43,16 @@ const QuotationSchema = new mongoose.Schema({
     },
     totalAmount: {
         type: Number,
-        required: true
+    },
+    tax: {
+        type: Number,
+    },
+    taxName: {
+        type: String,
+        default:"Tax"
+    },
+    subTotal: {
+        type: Number,
     },
     expireDate: {
         type: Date,
@@ -66,6 +81,13 @@ const QuotationSchema = new mongoose.Schema({
     approvedOn: {
         type: Date,
     },
+    fileUrl: {
+        type: Array,
+    },
+    proposal: {
+        type: String,
+        // required: true
+    }
 }, { timestamps: true });
 
 export default mongoose.model('quotation', QuotationSchema);

@@ -218,6 +218,15 @@ export const updateUserData = async (req, res) => {
     if (!userId || !values) {
       return res.status(400).json({ message: "Invalid request data" });
     }
+    const existingUser = await User.findOne({
+      $or: [{ email:values.email }, { loginId:values.loginId }]
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ 
+        message: "User with the same email or login ID already exists" 
+      });
+    }
     const user = await User.findByIdAndUpdate(
       userId,
       {

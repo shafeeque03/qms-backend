@@ -5,13 +5,9 @@ const ServiceSchema = new mongoose.Schema({
         type: String,
         required: true
       },
-      price: {
-        type: Number,
-        required: true
-      },
-      isAvailable: {
-        type: Boolean,
-        default:true
+    description: {
+        type: String,
+        default: ""
       },
       adminIs: {
         type: mongoose.Schema.Types.ObjectId,

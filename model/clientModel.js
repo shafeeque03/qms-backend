@@ -11,11 +11,10 @@ const ClientSchema = new mongoose.Schema({
     },
     address: {
         type: String,
-        required: true
+        default: ""
     },
     phone: {
         type: Number,
-        required: true
     },
     adminIs: {
         type: mongoose.Schema.Types.ObjectId,

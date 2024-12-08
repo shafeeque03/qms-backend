@@ -3,9 +3,10 @@ import bcrypt from "bcrypt";
 import { serialize } from "cookie";
 import User from "../model/userModel.js";
 import Client from "../model/clientModel.js";
-import Quotation from "../model/quotationModel.js"
-import Product from "../model/productModel.js"
-import Service from "../model/serviceModel.js"
+import Quotation from "../model/quotationModel.js";
+import Product from "../model/productModel.js";
+import Service from "../model/serviceModel.js";
+import cloudinary from "../util/cloudinary.js";
 
 
 export const filteredData = async (req, res) => {
@@ -50,13 +51,11 @@ export const filteredData = async (req, res) => {
 
     // Fetch filtered and paginated quotations
     const quotations = await Quotation.find(filter)
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(parseInt(limit))
-      .populate("products.product")
-      .populate("services.service")
-      .populate("createdBy")
-      .populate("client");
+    .skip(skip)
+    .limit(parseInt(limit))
+    .populate("createdBy")
+    .populate("client")
+    .sort(sortOptions)
 
     // Get total count of quotations for the filter
     const totalCount = await Quotation.countDocuments(filter);
@@ -94,7 +93,6 @@ export const verifyToken = (req, res, next) => {
 export const loginUser = async (req, res) => {
   try {
     const { loginId, password } = req.body;
-    console.log(loginId,password,"ju")
     const user = await User.findOne({ loginId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -144,8 +142,8 @@ export const addClient = async (req, res) => {
   let client = await Client.create({
     name: value.name,
     email: value.email,
-    address: value.address,
-    phone: value.phone,
+    address: value?.address,
+    phone: value?.phone,
     adminIs:adminId
   });
   res.status(201).json({ client, message: "Client added" });
@@ -153,7 +151,8 @@ export const addClient = async (req, res) => {
 
 export const getClients = async (req, res) => {
   try {
-    const clients = await Client.find({})
+    const{adminId} = req.query
+    const clients = await Client.find({adminIs:adminId})
   .collation({ locale: "en", strength: 1 })
   .sort({ name: 1 }); 
     res.status(200).json({ clients });
