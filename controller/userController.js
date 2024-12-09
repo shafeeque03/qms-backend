@@ -8,6 +8,61 @@ import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js";
 import cloudinary from "../util/cloudinary.js";
 
+export const userDashData = async (req, res) => {
+  const { user } = req.query;
+
+  if (!user) {
+    return res.status(400).json({ message: "User data is required" });
+  }
+
+  try {
+    // Fetch total quotations created by the user with the specified admin status
+    const totalQuotations = await Quotation.countDocuments({
+      createdBy: user._id,
+      adminIs: user.adminIs,
+    });
+
+    // Fetch count of quotations grouped by their statuses
+    const approvedQuotations = await Quotation.countDocuments({
+      createdBy: user._id,
+      adminIs: user.adminIs,
+      status: "accepted",
+    });
+
+    const rejectedQuotations = await Quotation.countDocuments({
+      createdBy: user._id,
+      adminIs: user.adminIs,
+      status: "rejected",
+    });
+
+    const pendingQuotations = await Quotation.countDocuments({
+      createdBy: user._id,
+      adminIs: user.adminIs,
+      status: "pending",
+    });
+
+    // Fetch last 10 quotations created by the user, sorted by createdAt descending
+    const lastTenQuotations = await Quotation.find({
+      createdBy: user._id,
+      adminIs: user.adminIs,
+    })
+      .sort({ createdAt: -1 }) // Sort by most recent
+      .limit(10);
+
+    // Return response
+    return res.status(200).json({
+      totalQuotations,
+      approvedQuotations,
+      rejectedQuotations,
+      pendingQuotations,
+      lastTenQuotations,
+    });
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error.message);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 
 export const filteredData = async (req, res) => {
   try {
@@ -169,4 +224,6 @@ export const getProAndSer = async(req,res)=>{
   res.status(200).json({products,services})
 
 }
+
+
 

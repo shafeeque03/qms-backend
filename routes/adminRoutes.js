@@ -13,7 +13,8 @@ import {
   getAllClients,
   filteredQuotation,
   filteredQuotationDownload,
-  dashboardData
+  dashboardData,
+  reportPageData
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -47,4 +48,6 @@ adminRoute.get("/downloadQuotation",filteredQuotationDownload);
 
 //dashboardControlls
 adminRoute.get('/dashboardData',dashboardData)
+adminRoute.get('/totalReport/:adminId',reportPageData)
+
 export default adminRoute;

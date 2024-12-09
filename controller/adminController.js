@@ -9,6 +9,174 @@ import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import { serialize } from "cookie";
 
+export const reportPageData = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+
+    // Validate adminId
+    if (!mongoose.Types.ObjectId.isValid(adminId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid Admin ID" 
+      });
+    }
+
+    // 1. Total Revenue Calculation
+    const totalRevenueResult = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted" 
+        } 
+      },
+      { 
+        $group: { 
+          _id: null, 
+          totalRevenue: { $sum: "$subTotal" },
+          totalQuotations: { $sum: 1 }
+        } 
+      }
+    ]);
+
+    // 2. Most Purchased Products
+    const mostPurchasedProducts = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted" 
+        } 
+      },
+      { $unwind: "$products" },
+      { 
+        $group: { 
+          _id: "$products.name", 
+          totalQuantity: { $sum: "$products.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$products.quantity", "$products.price"] } }
+        } 
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // 3. Most Provided Services
+    const mostProvidedServices = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted" 
+        } 
+      },
+      { $unwind: "$services" },
+      { 
+        $group: { 
+          _id: "$services.name", 
+          totalUsage: { $sum: 1 },
+          totalRevenue: { $sum: "$services.price" }
+        } 
+      },
+      { $sort: { totalUsage: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // 4. Quotation Status Breakdown
+    const quotationStatusBreakdown = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId) 
+        } 
+      },
+      { 
+        $group: { 
+          _id: "$status", 
+          count: { $sum: 1 } 
+        } 
+      }
+    ]);
+
+    // 5. Monthly Revenue Trend
+    const monthlyRevenueTrend = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted" 
+        } 
+      },
+      { 
+        $group: { 
+          _id: { 
+            year: { $year: "$approvedOn" }, 
+            month: { $month: "$approvedOn" } 
+          }, 
+          totalRevenue: { $sum: "$subTotal" } 
+        } 
+      },
+      { 
+        $sort: { 
+          "_id.year": 1, 
+          "_id.month": 1 
+        } 
+      }
+    ]);
+
+    // 6. Top Clients
+    const topClients = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted" 
+        } 
+      },
+      { 
+        $group: { 
+          _id: "$client", 
+          totalRevenue: { $sum: "$subTotal" },
+          quotationCount: { $sum: 1 }
+        } 
+      },
+      { 
+        $lookup: { 
+          from: "clients", 
+          localField: "_id", 
+          foreignField: "_id", 
+          as: "clientDetails" 
+        } 
+      },
+      { $unwind: "$clientDetails" },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Prepare Response
+    res.status(200).json({
+      success: true,
+      data: {
+        totalRevenue: totalRevenueResult[0]?.totalRevenue || 0,
+        totalQuotations: totalRevenueResult[0]?.totalQuotations || 0,
+        mostPurchasedProducts,
+        mostProvidedServices,
+        quotationStatusBreakdown: quotationStatusBreakdown.reduce((acc, status) => {
+          acc[status._id] = status.count;
+          return acc;
+        }, {}),
+        monthlyRevenueTrend,
+        topClients: topClients.map(client => ({
+          name: client.clientDetails.name,
+          totalRevenue: client.totalRevenue,
+          quotationCount: client.quotationCount
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error("Report Page Data Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal Server Error", 
+      error: error.message 
+    });
+  }
+};
 
 export const dashboardData = async (req, res) => {
   try {
