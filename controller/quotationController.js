@@ -119,7 +119,7 @@ const sendVerifyMail = async (quotation, admin, client) => {
 };
 
 
-export const generateQuotationPDF = (details) => {
+export const generateQuotationPDF = async (details) => {
   const {
     adminDetails,
     clientDetails,
@@ -145,10 +145,10 @@ export const generateQuotationPDF = (details) => {
 
   // Consistent margins on all sides
   const margin = {
-    left: 20,
-    right: 20,
-    top: 20,
-    bottom: 20
+    left: 15,    // Slightly reduced to create more space
+    right: 15,   // Slightly reduced to create more space
+    top: 15,     // Increased top margin for better spacing
+    bottom: 15   // Increased bottom margin for better spacing
   };
 
   const pageWidth = doc.internal.pageSize.width;
@@ -166,56 +166,180 @@ export const generateQuotationPDF = (details) => {
 
   // Helper functions
   const addPageHeader = (pageNum) => {
+    // Set header background
     doc.setFillColor(...colors.primary);
-    doc.rect(margin.left, margin.top, pageWidth - margin.left - margin.right, 20, 'F');
+    doc.rect(0, 0, pageWidth, 20, 'F');
+  
+    // Set text color to white and font for the admin name
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(13);
     doc.setFont(undefined, 'bold');
-    doc.text(title, margin.left + 5, margin.top + 12);
+  
+    // Calculate available width for adminDetails.name
+    const padding = 5; // Left padding
+    const pageNumWidth = 40; // Approx width for "Page X" text
+    const availableWidth = pageWidth - padding - pageNumWidth;
+  
+    // Wrap the admin name text to fit within available width
+    const adminNameText = doc.splitTextToSize(adminDetails.name, availableWidth);
+  
+    // Print admin name on the next line if necessary
+    doc.text(adminNameText, padding, 12);
+  
+    // Add page number
     doc.setFontSize(10);
     doc.setTextColor(...colors.text);
     doc.setFont(undefined, 'normal');
-    doc.text(`Page ${pageNum}`, pageWidth - margin.right - 20, margin.top + 10);
+    doc.text(`Page ${pageNum}`, pageWidth - padding - 12, 17); 
   };
+  
 
-  const addCompanyLogo = () => {
-    doc.setDrawColor(200);
-    doc.setLineWidth(0.5);
-    doc.rect(margin.left, margin.top + 25, 40, 30);
-    doc.setFontSize(8);
-    doc.text('LOGO', margin.left + 15, margin.top + 45);
-  };
-
-  const addCompanyDetails = () => {
-    doc.setFontSize(10);
-    doc.setTextColor(...colors.text);
-    doc.setFont(undefined, 'bold');
-    doc.text(adminDetails.name, margin.left, margin.top + 70);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Email: ${adminDetails.email}`, margin.left, margin.top + 77);
-    doc.text(`Phone: ${adminDetails.phone}`, margin.left, margin.top + 84);
-    doc.text(`Address: ${adminDetails.address.address1}`, margin.left, margin.top + 91);
-    if (adminDetails.address.address2) {
-      doc.text(adminDetails.address.address2, margin.left, margin.top + 98);
+  const addCompanyLogo = async () => {
+    try {
+      // If logo is provided
+      if (adminDetails.logo) {
+        let logoImage;
+  
+        // If it's a base64 string
+        if (adminDetails.logo.startsWith('data:')) {
+          logoImage = adminDetails.logo;
+        } else {
+          // If it's a URL, use more robust image fetching
+          try {
+            const response = await fetch(adminDetails.logo, { 
+              timeout: 5000,  // 5 second timeout
+              method: 'GET',
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+  
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+  
+            const blob = await response.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+            logoImage = `data:image/jpeg;base64,${Buffer.from(arrayBuffer).toString('base64')}`;
+          } catch (fetchError) {
+            console.error('Logo fetch error:', fetchError);
+            // Fallback to placeholder if fetch fails
+            logoImage = null;
+          }
+        }
+  
+        // Add logo if successfully retrieved
+        if (logoImage) {
+          doc.addImage(
+            logoImage, 
+            'PNG', 
+            margin.left, 
+            margin.top + 20,
+            40,  // width
+            30   // height
+          );
+        } else {
+          // Placeholder if no logo or fetch failed
+          doc.setDrawColor(200);
+          doc.setLineWidth(0.5);
+          doc.rect(margin.left, margin.top + 25, 40, 30);
+          doc.setFontSize(8);
+          doc.text('LOGO', margin.left + 15, margin.top + 45);
+        }
+      } else {
+        // Placeholder if no logo provided
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.5);
+        doc.rect(margin.left, margin.top + 25, 40, 30);
+        doc.setFontSize(8);
+        doc.text('LOGO', margin.left + 15, margin.top + 45);
+      }
+    } catch (error) {
+      console.error('Unexpected logo addition error:', error);
+      // Final fallback placeholder
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.5);
+      doc.rect(margin.left, margin.top + 25, 40, 30);
+      doc.setFontSize(8);
+      doc.text('LOGO', margin.left + 15, margin.top + 45);
     }
+  };
 
-    const rightColumnX = pageWidth / 2 + margin.left;
+  const addCompanyDetails = () => { 
+    const availableWidth = pageWidth - margin.left - margin.right; // Available text width
+    const lineHeight = 5; // Gap between lines
+  
+    doc.setFontSize(10);
+    doc.setTextColor(...colors.text);
+  
+    // "From" section
     doc.setFont(undefined, 'bold');
-    doc.text('Bill To:', rightColumnX, margin.top + 70);
-    doc.text(clientDetails.name, rightColumnX, margin.top + 77);
+    const fromName = `From: ${adminDetails.name}`;
+    const wrappedFromName = doc.splitTextToSize(fromName, availableWidth);
+    doc.text(wrappedFromName, margin.left, margin.top + 70);
+  
     doc.setFont(undefined, 'normal');
-    doc.text(`Email: ${clientDetails.email}`, rightColumnX, margin.top + 84);
-    doc.text(`Phone: ${clientDetails.phone}`, rightColumnX, margin.top + 91);
-    doc.text(`Address: ${clientDetails.address}`, rightColumnX, margin.top + 98);
-
+    let yPos = margin.top + 77; // Initialize vertical position
+    const fromFields = [
+      `Email: ${adminDetails.email}`,
+      `Phone: ${adminDetails.phone}`,
+      `Address: ${adminDetails.address.address1}`
+    ];
+  
+    // Add address2 if exists
+    if (adminDetails.address.address2) {
+      fromFields.push(adminDetails.address.address2);
+    }
+  
+    fromFields.forEach((field) => {
+      const wrappedField = doc.splitTextToSize(field, availableWidth);
+      doc.text(wrappedField, margin.left, yPos);
+      yPos += wrappedField.length * lineHeight; // Add gap based on lines
+    });
+  
+    // "To" section
     doc.setFont(undefined, 'bold');
-    doc.text(`Quotation #: ${qtnId || 'N/A'}`, margin.left, margin.top + 110);
+    yPos += 10; // Add extra space before "To" section
+    const toName = `To: ${clientDetails.name}`;
+    const wrappedToName = doc.splitTextToSize(toName, availableWidth);
+    doc.text(wrappedToName, margin.left, yPos);
+  
+    doc.setFont(undefined, 'normal');
+    yPos += wrappedToName.length * lineHeight;
+  
+    const toFields = [
+      `Email: ${clientDetails.email}`,
+      `Phone: ${clientDetails.phone}`,
+      `Address: ${clientDetails.address}`
+    ];
+  
+    toFields.forEach((field) => {
+      const wrappedField = doc.splitTextToSize(field, availableWidth);
+      doc.text(wrappedField, margin.left, yPos);
+      yPos += wrappedField.length * lineHeight; // Add gap
+    });
+  
+    // Quotation details
+    doc.setFont(undefined, 'bold');
+    yPos += 10; // Add extra space before Quotation
+    doc.text(`Quotation #: ${qtnId || 'N/A'}`, margin.left, yPos);
     doc.text(
       `Expire Date: ${expireDate ? new Date(expireDate).toLocaleDateString() : 'N/A'}`,
       pageWidth - margin.right - 50,
-      margin.top + 110
+      yPos
     );
+  
+    // Title Section
+    doc.setFontSize(13);
+    doc.setFont(undefined, 'bold');
+    yPos += 15; // Extra space before title
+    const titleText = `${title || 'N/A'}`;
+    const wrappedTitle = doc.splitTextToSize(titleText, availableWidth);
+    doc.text(wrappedTitle, margin.left, yPos);
   };
+  
+  
 
   const createTable = (headers, data, title) => {
     const tableOptions = {
@@ -299,31 +423,48 @@ export const generateQuotationPDF = (details) => {
         doc.setTextColor(...colors.text);
         doc.setFont(undefined, 'bold');
         doc.text('Terms and Conditions:', margin.left, startY);
+        
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
+        
         const termsLines = doc.splitTextToSize(
           termsAndConditions || 'No specific terms provided.',
           pageWidth - margin.left - margin.right
         );
         doc.text(termsLines, margin.left, startY + 10);
-        const termsHeight = termsLines.length * 7;
-        
+  
+        // Calculate and return new Y position
+        const termsHeight = termsLines.length * 7; // Line height for terms
+        return startY + 10 + termsHeight; // Add padding after terms
+      },
+      title: 'Terms and Description',
+    };
+  };
+  
+  const AddDescription = () => {
+    return {
+      content: (startY) => {
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.text('Description:', margin.left, startY + termsHeight + 20);
+        doc.text('Description:', margin.left, startY);
+        
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
+        
         const descLines = doc.splitTextToSize(
           description || 'No description provided.',
           pageWidth - margin.left - margin.right
         );
-        doc.text(descLines, margin.left, startY + termsHeight + 30);
-        
-        return startY + termsHeight + descLines.length * 7 + 40;
+        doc.text(descLines, margin.left, startY + 10);
+  
+        // Calculate and return new Y position
+        const descHeight = descLines.length * 7; // Line height for description
+        return startY + 10 + descHeight + 20; // Add padding after description
       },
-      title: 'Terms and Description'
+      title: 'Description',
     };
   };
+  
 
   const addFooter = () => {
     doc.setTextColor(150, 150, 150);
@@ -354,16 +495,17 @@ if (showPrice) {
 }
 
 contentSections.push(addTermsAndDescription());
+contentSections.push(AddDescription());
 
 
   // Generate PDF
   let currentPage = 1;
   addPageHeader(currentPage);
-  addCompanyLogo();
+  await addCompanyLogo();
   addCompanyDetails();
 
   // Intelligent page management
-  let currentY = margin.top + 130;
+  let currentY = margin.top + 172;
   contentSections.forEach((section, index) => {
     // Check if we need a new page
     const estimatedContentHeight = 50; // Rough estimation
@@ -506,7 +648,7 @@ export const createQuotation = async (req, res) => {
     const qtnId = (await Quotation.countDocuments()) + 1000;
 
     // Generate PDF using the imported utility
-    const pdfBuffer = generateQuotationPDF({ 
+    const pdfBuffer = await generateQuotationPDF({ 
       adminDetails, 
       clientDetails, 
       products, 
@@ -569,7 +711,7 @@ export const createQuotation = async (req, res) => {
     });
 
     const newQtn = await newQuotation.save();
-    // await sendVerifyMail(newQtn, adminName, clientDetails);
+    await sendVerifyMail(newQtn, adminName, clientDetails);
     // await sendWhatsAppMessage(clientDetails, newQtn, adminName);
 
     res.status(200).json({ 

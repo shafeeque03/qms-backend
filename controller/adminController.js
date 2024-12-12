@@ -1,5 +1,4 @@
 import User from "../model/userModel.js";
-import Admin from "../model/adminModel.js"
 import Client from "../model/clientModel.js"
 import Quotation from "../model/quotationModel.js"
 import Product from "../model/productModel.js";
@@ -8,6 +7,203 @@ import Jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import { serialize } from "cookie";
+import Admin from "../model/adminModel.js";
+import cloudinary from "../util/cloudinary.js";
+
+import { parse } from 'csv-parse/sync';
+import { stringify } from 'csv-stringify/sync';
+
+import PDFDocument from 'pdfkit';
+import pdf from 'html-pdf';
+
+export const downloadQuotationReport = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Validate dates
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Start and end dates are required" 
+      });
+    }
+
+    // Aggregate quotations within date range
+    const quotations = await Quotation.aggregate([
+      { 
+        $match: { 
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          approvedOn: { 
+            $gte: new Date(startDate), 
+            $lte: new Date(endDate) 
+          }
+        } 
+      },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'client',
+          foreignField: '_id',
+          as: 'clientDetails'
+        }
+      },
+      { $unwind: '$clientDetails' }
+    ]);
+
+    // Calculate total revenue
+    const totalRevenue = quotations.reduce((sum, q) => sum + (q.subTotal || 0), 0);
+
+    // Generate HTML for PDF
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #2c3e50; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { 
+              border: 1px solid #ddd; 
+              padding: 8px; 
+              text-align: left; 
+            }
+            th { 
+              background-color: #f2f2f2; 
+              font-weight: bold;
+            }
+            .summary { 
+              margin-top: 20px; 
+              font-weight: bold; 
+              font-size: 18px; 
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Quotation Report</h1>
+          <p><strong>Date Range:</strong> ${startDate} to ${endDate}</p>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Quotation No</th>
+                <th>Client Name</th>
+                <th>Total Amount</th>
+                <th>Created Date</th>
+                <th>Approved Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${quotations.map(q => `
+                <tr>
+                  <td>${q.quotationId}</td>
+                  <td>${q.clientDetails.name}</td>
+                  <td>$${q.subTotal?.toFixed(2)}</td>
+                  <td>${q.createdAt.toISOString().split('T')[0]}</td>
+                  <td>${q.approvedOn.toISOString().split('T')[0]}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="summary">
+            <p>Total Quotations: ${quotations.length}</p>
+            <p>Total Revenue: $${totalRevenue.toFixed(2)}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // PDF generation options
+    const options = { 
+      format: 'A4', 
+      orientation: 'portrait',
+      border: {
+        top: "20mm",
+        right: "20mm",
+        bottom: "20mm",
+        left: "20mm"
+      }
+    };
+
+    // Generate PDF
+    pdf.create(htmlContent, options).toBuffer((err, buffer) => {
+      if (err) {
+        return res.status(500).json({ 
+          success: false, 
+          message: "Error generating PDF", 
+          error: err.message 
+        });
+      }
+
+      // Send PDF
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=quotations_${startDate}_to_${endDate}.pdf`);
+      res.send(buffer);
+    });
+
+  } catch (error) {
+    console.error("Download Report Error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Internal Server Error", 
+      error: error.message 
+    });
+  }
+};
+
+export const logoUpdate = async (req, res) => {
+  try {
+    const {adminId,file} = req.body;
+
+    if (!adminId) {
+      return res.status(400).json({ message: "Admin ID is required" })
+    }
+
+    const admin = await Admin.findById(adminId)
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" })
+    }
+
+    if (file) {
+      const fileData = file.base64
+      const uploadResult = await cloudinary.uploader.upload(fileData, {
+        folder: 'admin_logos',
+        transformation: [
+          { width: 500, height: 500, crop: "limit" }
+        ]
+      })
+
+      admin.logo = uploadResult.secure_url
+
+      const newAdmin = await admin.save()
+
+      return res.status(200).json({ 
+        message: "Logo updated successfully", 
+        newAdmin
+      })
+    } else {
+
+      if (admin.logo) {
+        const publicId = admin.logo.split('/').pop().split('.')[0]
+        
+        await cloudinary.uploader.destroy(`admin_logos/${publicId}`)
+      }
+
+      // Clear logo in database
+      admin.logo = null
+      await admin.save()
+
+      return res.status(200).json({ 
+        message: "Logo removed successfully" 
+      })
+    }
+
+  } catch (error) {
+    console.error("Error updating logo:", error.message)
+    res.status(500).json({ message: "Internal server error" })
+  }
+}
 
 export const reportPageData = async (req, res) => {
   try {
@@ -383,11 +579,16 @@ export const getUserDetails = async (req, res) => {
 export const updateUserData = async (req, res) => {
   try {
     const { userId, values } = req.body;
+
+    // Check for required data
     if (!userId || !values) {
       return res.status(400).json({ message: "Invalid request data" });
     }
+
+    // Check if another user has the same email or loginId
     const existingUser = await User.findOne({
-      $or: [{ email:values.email }, { loginId:values.loginId }]
+      $or: [{ email: values.email }, { loginId: values.loginId }],
+      _id: { $ne: userId } // Exclude the current user
     });
 
     if (existingUser) {
@@ -395,6 +596,8 @@ export const updateUserData = async (req, res) => {
         message: "User with the same email or login ID already exists" 
       });
     }
+
+    // Update user data
     const user = await User.findByIdAndUpdate(
       userId,
       {
@@ -402,22 +605,23 @@ export const updateUserData = async (req, res) => {
         email: values.email,
         phone: values.phone,
         loginId: values.loginId,
-        is_blocked:values.isBlocked
+        is_blocked: values.isBlocked
       },
-      { new: true }
+      { new: true } // Return the updated document
     );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res
-      .status(200)
-      .json({ message: "User details updated", user });
+
+    res.status(200).json({ message: "User details updated", user });
+
   } catch (error) {
     console.error("Error updating user:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 export const updateUserPassword = async (req, res) => {
   try {
@@ -604,6 +808,73 @@ export const filteredQuotationDownload = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const updateAdminProfile = async (req, res) => {
+  try {
+    const { adminId, values } = req.body;
+
+    // Check for required data
+    if (!adminId || !values) {
+      return res.status(400).json({ message: "Invalid request data" });
+    }
+
+    // Check if another user has the same email or loginId
+    const existingUser = await Admin.findOne({
+      email:values.email,
+      _id: { $ne: adminId } // Exclude the current user
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ 
+        message: "User with the same email already exists" 
+      });
+    }
+
+    // Update user data
+    const user = await Admin.findByIdAndUpdate(
+      adminId,
+      {
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        address:values.address,
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "User details updated", user });
+
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateAdminPassword = async (req, res) => {
+  try {
+    const { adminId, password } = req.body;
+    if (password.newPassword != password.confirmPassword) {
+      return res.status(403).json({ message: "Passwords do not match" });
+    }
+    if(password.newPassword.trim()==''){
+      return res.status(403).json({ message: "Please Enter a valid password" });
+    }
+    const encryptedPassword = await securePassword(password.newPassword);
+    await Admin.findByIdAndUpdate(
+      adminId,
+      { password: encryptedPassword },
+      { new: true }
+    );
+    res.status(200).json({ message: "Password Updated" });
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 

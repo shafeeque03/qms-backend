@@ -18,14 +18,19 @@ const adminSchema = new mongoose.Schema(
     address: {
       address1: {
         type: String,
-        required: true,
+        default: ""
       },
       address2: {
         type: String,
+        default: ""
       },
       pincode: {
         type: Number,
       },
+    },
+    logo:{
+      type: String,
+      default: ""
     },
     password: {
       type: String,

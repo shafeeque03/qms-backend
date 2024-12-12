@@ -166,7 +166,7 @@ export const loginUser = async (req, res) => {
       { name: user.name, email: user.email, id: user._id, role: "user" },
       process.env.SECRET_KEY,
       {
-        expiresIn: "1h",
+        expiresIn: "12h",
       }
     );
 

@@ -11,7 +11,7 @@ export const sendWhatsAppMessage = async (user, data, admin) => {
       const message = await client.messages.create({
         from: `whatsapp:${fromNum}`,
         to: `whatsapp:${user.phone}`,
-        body: `Hello ${user.name},\n\nThank you for considering our services. Please find the proposal attached below. You can view and download the PDF using the link:\n\n📄 ${data.proposal} \n\nFeel free to reach out if you have any questions.\n\nBest regards,\n ${admin}`
+        body: `Hello ${user.name},\n\nThank you for considering our services. Please find the proposal(# ${data.quotationId} ) attached below. You can view and download the PDF using the link:\n\n📄 ${data.proposal} \n\nFeel free to reach out if you have any questions.\n\nBest regards,\n ${admin}`
       });
   
       console.log('Message sent successfully:', message.sid);

@@ -14,13 +14,19 @@ import {
   filteredQuotation,
   filteredQuotationDownload,
   dashboardData,
-  reportPageData
+  reportPageData,
+  updateAdminProfile,
+  updateAdminPassword,
+  logoUpdate,
+  downloadQuotationReport
 } from "../controller/adminController.js";
 import {
   downloadPDF,
   getProducts,
   getServices,
 } from "../controller/proAndSerController.js";
+import { uploadFile } from "../middleware/uploadMiddleware.js";
+
 
 
 //userControlls
@@ -49,5 +55,11 @@ adminRoute.get("/downloadQuotation",filteredQuotationDownload);
 //dashboardControlls
 adminRoute.get('/dashboardData',dashboardData)
 adminRoute.get('/totalReport/:adminId',reportPageData)
+
+//profileControlls
+adminRoute.post('/updateProfile',updateAdminProfile)
+adminRoute.post('/updateProfilePassword',updateAdminPassword)
+adminRoute.post('/updateLogo',uploadFile,logoUpdate)
+adminRoute.get('/download-report/:adminId',downloadQuotationReport)
 
 export default adminRoute;
