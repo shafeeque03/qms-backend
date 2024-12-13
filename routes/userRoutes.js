@@ -1,6 +1,6 @@
 import express from 'express';
 import { loginUser,logoutUser,addClient,getClients,filteredData, getProAndSer, userDashData } from '../controller/userController.js';
-import { createQuotation,quotationDetails,changeQtnStatus } from '../controller/quotationController.js';
+import { createQuotation,quotationDetails,changeQtnStatus, updateQuotationDetails } from '../controller/quotationController.js';
 import { uploadFile } from '../middleware/uploadMiddleware.js';
 const userRoute = express();
 
@@ -10,6 +10,8 @@ userRoute.post('/addClient', addClient);
 userRoute.get('/getClients', getClients);
 
 userRoute.post('/createQuotation',uploadFile,createQuotation);
+userRoute.post('/editQuotation',uploadFile,updateQuotationDetails);
+
 userRoute.get('/quotationDetails/:qid',quotationDetails);
 userRoute.get('/getProAndSer/:adminId',getProAndSer);
 userRoute.patch('/qtnStatusChange',changeQtnStatus);

@@ -87,6 +87,10 @@ const QuotationSchema = new mongoose.Schema({
     proposal: {
         type: String,
         // required: true
+    },
+    publicId: {
+        type: String,
+        // required: true
     }
 }, { timestamps: true });
 
