@@ -5,7 +5,7 @@ import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js";
 import Admin from "../model/adminModel.js"
 import nodemailer from 'nodemailer'
-import cloudinary from "cloudinary";
+import cloudinary from "../util/cloudinary.js";
 import { jsPDF } from "jspdf";
 import 'jspdf-autotable';
 import { Readable } from 'stream';
@@ -38,6 +38,8 @@ export const updateQuotationDetails = async (req, res) => {
       subTotal,
       showPrice,
       emails,
+      from,
+      logo,
       qid, // Quotation ID to update
     } = req.body;
 
@@ -119,7 +121,7 @@ export const updateQuotationDetails = async (req, res) => {
       });
     }
     
-    createdOn = quotation?.createdAt
+    const createdOn = quotation?.createdAt
 
     // Generate PDF
     const pdfBuffer = await generateQuotationPDF({
@@ -137,7 +139,9 @@ export const updateQuotationDetails = async (req, res) => {
       expireDate,
       qtnId: quotation.quotationId,
       showPrice,
-      createdOn
+      createdOn,
+      from,
+      logo
     });
 
     // Upload Updated PDF
@@ -169,6 +173,7 @@ export const updateQuotationDetails = async (req, res) => {
     quotation.client = client;
     quotation.proposal = pdfUpload.secure_url;
     quotation.publicId = pdfUpload.public_id;
+    quotation.from = from
 
     if (showPrice) {
       quotation.taxName = taxName;
@@ -209,7 +214,7 @@ const sendVerifyMail = async (quotation, admin, client,emails) => {
     });
 
     const mailOptions = {
-      from: "ptshafeeque999.com",
+      from: "qmsalfarooq.com",
       to: emails,
       subject: `Quotation Proposal from ${admin}`,
       html: `
@@ -321,7 +326,9 @@ export const generateQuotationPDF = async (details) => {
     expireDate,
     qtnId,
     showPrice,
-    createdOn
+    createdOn,
+    from,
+    logo
   } = details;
 
   const formatTextAreaContent = (text) => {
@@ -369,7 +376,7 @@ export const generateQuotationPDF = async (details) => {
     color: var(--text-color);
     max-width: 800px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 5px;
     font-size: 14px;
   }
 
@@ -455,7 +462,7 @@ export const generateQuotationPDF = async (details) => {
 </head>
 <body>
   <div class="header">
-    <img src="${adminDetails.logo || '/placeholder-logo.png'}" alt="Company Logo" class="logo">
+    <img src="${logo?.preview || '/placeholder-logo.png'}" alt="Company Logo" class="logo">
     <h1>Proposal</h1>
   </div>
 
@@ -472,11 +479,10 @@ export const generateQuotationPDF = async (details) => {
   <div class="contact-details">
     <div class="contact-section">
       <div class="section-title">From:</div>
-      <div>${adminDetails.name}</div>
-      <div>Email: ${adminDetails.email}</div>
-      <div>Phone: ${adminDetails.phone}</div>
-      <div>Address: ${adminDetails.address.address1}</div>
-      ${adminDetails.address.address2 ? `<div>${adminDetails.address.address2}</div>` : ''}
+      <div>${from.name}</div>
+      <div>Email: ${from.email}</div>
+      <div>Phone: ${from.phone}</div>
+      <div>Address: ${from.address}</div>
     </div>
     <div class="contact-section">
       <div class="section-title">To:</div>
@@ -602,6 +608,8 @@ export const createQuotation = async (req, res) => {
       subTotal,
       showPrice,
       emails,
+      from,
+      logo,
       adminId,
     } = req.body;
 
@@ -680,13 +688,16 @@ export const createQuotation = async (req, res) => {
       if (!fileObj.base64) {
         throw new Error(`Invalid file object: ${JSON.stringify(fileObj)}`);
       }
+    
       const fileData = fileObj.base64;
-      // Upload to Cloudinary
+    
+      // Upload to Cloudinary with a specific folder
       return cloudinary.uploader.upload(fileData, {
-        folder: "QuotationFile",
-        resource_type: 'image',
+        folder: "QuotationFile", // Ensure this parameter is correct
+        resource_type: "auto", // Let Cloudinary auto-detect the file type
       });
     });
+    
 
     const uploadFiles = await Promise.all(uploadPromises);
     const allFiles = uploadFiles.map((val) => val.secure_url);
@@ -708,13 +719,15 @@ export const createQuotation = async (req, res) => {
       expireDate,
       qtnId,
       showPrice,
-      createdOn
+      createdOn,
+      from,
+      logo
     });
 
 
     // Upload PDF with timeout
     const pdfUpload = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.v2.uploader.upload_stream(
+      const uploadStream = cloudinary.uploader.upload_stream(
         { 
           // Change resource_type to "image" instead of "raw"
           resource_type: "image",
@@ -751,6 +764,7 @@ export const createQuotation = async (req, res) => {
       quotationId: qtnId,
       adminIs: adminId,
       fileUrl: allFiles,
+      from,
       proposal: pdfPreviewUrl,
       publicId: pdfUpload.public_id,
       ...(showPrice && {

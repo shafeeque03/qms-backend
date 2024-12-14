@@ -18,7 +18,8 @@ import {
   updateAdminProfile,
   updateAdminPassword,
   logoUpdate,
-  downloadQuotationReport
+  downloadQuotationReport,
+  quotationDetails
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -61,5 +62,6 @@ adminRoute.post('/updateProfile',updateAdminProfile)
 adminRoute.post('/updateProfilePassword',updateAdminPassword)
 adminRoute.post('/updateLogo',uploadFile,logoUpdate)
 adminRoute.get('/download-report/:adminId',downloadQuotationReport)
+adminRoute.get('/quotationDetails/:qid',quotationDetails);
 
 export default adminRoute;

@@ -6,13 +6,15 @@ import adminRoute from './routes/adminRoutes.js';
 import userRoute from './routes/userRoutes.js'
 import hosterRoute from './routes/hosterRoutes.js';
 import authRoute from './routes/authRoute.js';
-import http from 'http'
+import http from 'http';
+import cookieParser from 'cookie-parser';
 
 const port = 5555
 
 dotenv.config();
 dbconnect();
 let app = express();
+app.use(cookieParser());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors({

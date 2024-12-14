@@ -16,6 +16,30 @@ import { stringify } from 'csv-stringify/sync';
 import PDFDocument from 'pdfkit';
 import pdf from 'html-pdf';
 
+export const quotationDetails = async (req, res) => {
+  try {
+    const { qid } = req.params;
+    const quotation = await Quotation.findById(qid)
+      .populate({
+        path: "createdBy",
+        select: "name phone email ",
+      })
+      .populate({
+        path: "client",
+        select: "name email phone address",
+      })
+      .populate({
+        path: "adminIs",
+        select: "name email phone address"
+      });
+
+    res.status(200).json({ quotation });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 export const downloadQuotationReport = async (req, res) => {
   try {
     const { adminId } = req.params;
@@ -235,6 +259,8 @@ export const reportPageData = async (req, res) => {
       }
     ]);
 
+    const totalQuotationsCount = await Quotation.find({adminIs:adminId}).countDocuments()
+
     // 2. Most Purchased Products
     const mostPurchasedProducts = await Quotation.aggregate([
       { 
@@ -348,7 +374,7 @@ export const reportPageData = async (req, res) => {
       success: true,
       data: {
         totalRevenue: totalRevenueResult[0]?.totalRevenue || 0,
-        totalQuotations: totalRevenueResult[0]?.totalQuotations || 0,
+        totalQuotations: totalQuotationsCount || 0,
         mostPurchasedProducts,
         mostProvidedServices,
         quotationStatusBreakdown: quotationStatusBreakdown.reduce((acc, status) => {
