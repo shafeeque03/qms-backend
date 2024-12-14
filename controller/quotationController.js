@@ -119,7 +119,7 @@ export const updateQuotationDetails = async (req, res) => {
       });
     }
     
-    
+    createdOn = quotation?.createdAt
 
     // Generate PDF
     const pdfBuffer = await generateQuotationPDF({
@@ -137,6 +137,7 @@ export const updateQuotationDetails = async (req, res) => {
       expireDate,
       qtnId: quotation.quotationId,
       showPrice,
+      createdOn
     });
 
     // Upload Updated PDF
@@ -320,6 +321,7 @@ export const generateQuotationPDF = async (details) => {
     expireDate,
     qtnId,
     showPrice,
+    createdOn
   } = details;
 
   const formatTextAreaContent = (text) => {
@@ -347,6 +349,7 @@ export const generateQuotationPDF = async (details) => {
     --secondary-color: #3498db;
     --text-color: #333;
     --light-background: #f1f8ff;
+    --blueColour: #1600e0;
   }
 
     * {
@@ -384,6 +387,12 @@ export const generateQuotationPDF = async (details) => {
       max-height: 100px;
     }
 
+    .hightLightText {
+      color: var(--blueColour);
+      font-weight: bold;
+      text-align: center;
+    }
+
     .quotation-details {
       background-color: var(--light-background);
       padding: 15px;
@@ -406,6 +415,7 @@ export const generateQuotationPDF = async (details) => {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 20px;
+      border-radius: 7px;
     }
 
     .table th, .table td {
@@ -446,13 +456,17 @@ export const generateQuotationPDF = async (details) => {
 <body>
   <div class="header">
     <img src="${adminDetails.logo || '/placeholder-logo.png'}" alt="Company Logo" class="logo">
-    <h1>Quotation</h1>
+    <h1>Proposal</h1>
   </div>
 
   <div class="quotation-details">
     <div>Quotation #: ${qtnId || 'N/A'}</div>
+    <div>Date Created: ${createdOn ? new Date(createdOn).toLocaleDateString() : 'N/A'}</div>
     <div>Expiration Date: ${expireDate ? new Date(expireDate).toLocaleDateString() : 'N/A'}</div>
-    <h3>${title || ''}</h3>
+    </div>
+    
+    <div class="hightLightText"> 
+    <h3>${title || 'Proposal'}</h3>
   </div>
 
   <div class="contact-details">
@@ -676,8 +690,8 @@ export const createQuotation = async (req, res) => {
 
     const uploadFiles = await Promise.all(uploadPromises);
     const allFiles = uploadFiles.map((val) => val.secure_url);
-    const qtnId = (await Quotation.countDocuments()) + 1000;
-
+    const qtnId = (await Quotation.find({adminIs:adminId}).countDocuments()) + 1000;
+    const createdOn = new Date();
     // Generate PDF using the imported utility
     const pdfBuffer = await generateQuotationPDF({ 
       adminDetails, 
@@ -693,7 +707,8 @@ export const createQuotation = async (req, res) => {
       subTotal,
       expireDate,
       qtnId,
-      showPrice
+      showPrice,
+      createdOn
     });
 
 

@@ -5,6 +5,7 @@ import dbconnect from './config/database.js'
 import adminRoute from './routes/adminRoutes.js';
 import userRoute from './routes/userRoutes.js'
 import hosterRoute from './routes/hosterRoutes.js';
+import authRoute from './routes/authRoute.js';
 import http from 'http'
 
 const port = 5555
@@ -22,6 +23,7 @@ app.use(cors({
 app.use('/',userRoute);
 app.use('/admin',adminRoute);
 app.use('/hoster',hosterRoute);
+app.use('/auth',authRoute);
 
 const server = http.createServer(app);
 server.listen(port,()=>console.log(`App working on port ${port}`))

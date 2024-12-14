@@ -148,12 +148,14 @@ export const verifyToken = (req, res, next) => {
 export const loginUser = async (req, res) => {
   try {
     const { loginId, password } = req.body;
-    const user = await User.findOne({ loginId });
+    const user = await User.findOne({ loginId:loginId });
+
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if(user.is_blocked){
+    if (user.is_blocked) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
@@ -162,15 +164,33 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { name: user.name, email: user.email, id: user._id, role: "user" },
-      process.env.SECRET_KEY,
-      {
-        expiresIn: "12h",
-      }
+    // Generate Access Token (short-lived)
+    const accessToken = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.ACCESS_SECRET_KEY,
+      { expiresIn: "12h" }
     );
 
-    res.status(200).json({ user, message: `Welcome ${user.name}`, token });
+    // Generate Refresh Token (long-lived)
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.REFRESH_SECRET_KEY,
+      { expiresIn: "7d" }
+    );
+
+    // Send refreshToken securely in HttpOnly cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
+    res.status(200).json({
+      user,
+      message: `Welcome ${user.name}`,
+      accessToken,
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ message: "Server error" });
