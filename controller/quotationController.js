@@ -116,7 +116,7 @@ export const updateQuotationDetails = async (req, res) => {
 
     // Remove Old PDF from Cloudinary
     if (quotation.publicId) {
-      await cloudinary.v2.uploader.destroy(quotation.publicId, {
+      await cloudinary.uploader.destroy(quotation.publicId, {
         resource_type: "image",
       });
     }
@@ -146,22 +146,27 @@ export const updateQuotationDetails = async (req, res) => {
 
     // Upload Updated PDF
     const pdfUpload = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.v2.uploader.upload_stream(
-        {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { 
+          // Change resource_type to "image" instead of "raw"
           resource_type: "image",
-          folder: "QuotationProposal", // Cloudinary folder
+          folder: "QuotationProposal",
+          // Convert first page of PDF to image
+          format: "pdf"
         },
         (error, result) => {
           if (error) {
             console.error("Cloudinary upload error:", error);
             return reject(error);
           }
-          resolve(result); // This includes result.public_id
+          resolve(result);
         }
       );
+    
       const bufferStream = new Readable();
       bufferStream.push(pdfBuffer);
       bufferStream.push(null);
+    
       bufferStream.pipe(uploadStream);
     });
     

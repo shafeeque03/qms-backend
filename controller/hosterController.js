@@ -26,7 +26,7 @@ export const hosterLogin = async (req, res) => {
           },
           process.env.HOSTER_SECRET,
           {
-            expiresIn: "3h",
+            expiresIn: "12h",
           }
         );
         res.setHeader(

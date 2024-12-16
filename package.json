@@ -5,9 +5,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon --signal SIGINT index.js"
-  },
+  "dev": "nodemon --signal SIGINT index.js",    
+  "start": "nodemon  index.js",                    
+  "build": "echo \"No build step needed\"",   
+  "test": "echo \"Error: no test specified\" && exit 1"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",

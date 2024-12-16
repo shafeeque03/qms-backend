@@ -3,18 +3,179 @@ import Client from "../model/clientModel.js"
 import Quotation from "../model/quotationModel.js"
 import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js"
-import Jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
 import { serialize } from "cookie";
 import Admin from "../model/adminModel.js";
+import otpModel from "../model/otpModel.js"
 import cloudinary from "../util/cloudinary.js";
+import nodemailer from "nodemailer"
 
 import { parse } from 'csv-parse/sync';
 import { stringify } from 'csv-stringify/sync';
 
 import PDFDocument from 'pdfkit';
 import pdf from 'html-pdf';
+
+
+const sendVerifymailOtp = async (name, email, userId) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    const otp = Math.floor(1000 + Math.random() * 9000);
+
+
+    const mailOption = {
+      from: "qmsalfarooq.com",
+      to: email,
+      subject: "For OTP verification",
+      text: `Your OTP is: ${otp}`,
+      html: `
+      <html>
+          <body style = "backgroundColor":blue>
+              <p style="color:#2A5948">Hello,${name}</p>
+              <h3 style="color:#2A5948">Your OTP for verification is: <span style="font-weight: bold; color: #3498db;">${otp}</span></h3>
+              <p style="color:#2A5948">If you didn't request this OTP or need further assistance, please connect us</p>
+          </body>
+      </html>
+  `
+    };
+    await otpModel.deleteMany({userId: userId});
+    const verificationOtp = new otpModel({
+      userId:userId,
+      otp:otp,
+      createdAt:Date.now(),
+      expiresAt:Date.now()+180000
+    })
+
+   await verificationOtp.save()
+
+    transporter.sendMail(mailOption, (error, info) => {
+      if (error) {
+        console.log(error.message);
+      } else {
+        console.log(otp + "," + "email has been send to:", info.response);
+      }
+    });
+
+
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
+export const forgetPassword = async(req,res)=>{
+  try {
+    const{email} = req.body;
+    console.log(email,"heyy")
+    const admin = await Admin.findOne({email:email});
+    if(!admin){
+      return res.status(404).json({message:"User not found"})
+    };
+    await sendVerifymailOtp(admin.name, admin.email, admin._id);
+    res.status(200).json({admin,message:"OTP has been send"})
+  } catch (error) {
+    console.log(error.message)
+    res.status(500).json({ message: "Internal Server Error" }); 
+  }
+}
+
+export const changeAdminPass = async(req,res)=>{
+  try {
+    const { adminId, password } = req.body;
+    if (!adminId || !password) {
+      return res.status(400).json({ message: "Invalid request" });
+    }
+    const encryptedPassword = await securePassword(password);
+    await Admin.findByIdAndUpdate(
+      adminId,
+      { password: encryptedPassword },
+      { new: true }
+    );
+    res.status(200).json({ message: "Password Updated" });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ status: "Internal Server Error" });
+  }
+}
+
+export const resendOtp = async(req,res)=>{
+  try {
+    const{adminId} = req.body;
+    const admin = await Admin.findById(adminId);
+    await sendVerifymailOtp(admin.name, admin.email, admin._id);
+    res.status(200).json({message:"OTP has been send"})
+  } catch (error) {
+    console.log(error.message)
+    res.status(500).json({ message: "Internal Server Error" });   
+  }
+}
+
+export const otpVerifying = async (req, res) => {
+  try {
+    const{adminId,otp} = req.body
+    const otpData = await otpModel.findOne({userId:adminId})
+
+    const correctOtp = otpData.otp;
+    if(otpData && otpData.expiresAt < Date.now()){
+      return res.status(401).json({ message: "Email OTP has expired" });
+    }
+    if(correctOtp == otp) {
+      await otpModel.deleteMany({userId: adminId});
+      await Admin.updateOne({_id:adminId},{$set:{isVerified:true}})
+      res.status(200).json({
+        status:true,
+        message:"User registration success, you can login now",
+      })
+    }else{
+      res.status(400).json({message:"Incorrect OTP"})
+    }
+
+
+  } catch (error) {
+    console.log(error.message)
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const createAdmin = async (req, res) => {
+  try {
+    const { name, email, phone, address1, address2, pincode, password } =
+      req.body.formData;
+    const existingAdmin = await Admin.findOne({ email });
+    if (existingAdmin) {
+      return res.status(400).json({ message: "Email already exists." });
+    }
+    const encryptedPassword = await securePassword(password);
+    const admin = await Admin.create({
+      name,
+      email,
+      phone,
+      "address.address1": address1,
+      "address.address2": address2,
+      "address.pincode": pincode,
+      password: encryptedPassword,
+    });
+    const adminData = await admin.save();
+     await sendVerifymailOtp(adminData.name, adminData.email, adminData._id);
+     res.status(201).json({
+      message:`otp has send to ${email}`,
+      userData: adminData,
+    })
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ status: "Internal Server Error" });
+  }
+};
 
 export const quotationDetails = async (req, res) => {
   try {
@@ -462,44 +623,65 @@ export const dashboardData = async (req, res) => {
 export const adminLogin = async (req, res) => {
   try {
     const { id, password } = req.body;
-    const admin = await Admin.findOne({ email:id });
+    const admin = await Admin.findOne({ email: id });
     if (!admin) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if(admin.isBlocked){
+    if (admin.isBlocked) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // Check if the user is not verified
+    if (!admin.isVerified) {
+      await sendVerifymailOtp(admin.name, admin.email, admin._id);
+      return res.status(200).json({
+        adminData:admin,
+        message: "Account not verified. Please complete OTP verification.",
+        isVerified: false,
+      });
+    }
+
+    // Verify password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-    const token = Jwt.sign(
-      { name: admin.name, email: admin.email, id: admin._id, role: "admin" },
-      process.env.ADMIN_SECRET,
-      {
-        expiresIn: "1h",
-      }
+
+    // Generate Access Token (short-lived)
+    const accessToken = jwt.sign(
+      { id: admin._id, email: admin.email },
+      process.env.ACCESS_SECRET_KEY,
+      { expiresIn: "12h" }
     );
 
-    res.setHeader(
-      "Set-Cookie",
-      serialize("userToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 3600,
-        path: "/",
-      })
+    // Generate Refresh Token (long-lived)
+    const refreshToken = jwt.sign(
+      { id: admin._id },
+      process.env.REFRESH_SECRET_KEY,
+      { expiresIn: "7d" }
     );
 
-    res.status(200).json({ admin, message: `Welcome ${admin.name}`, token });
+    // Send refreshToken securely in HttpOnly cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    });
+
+    res.status(200).json({
+      admin,
+      message: `Welcome ${admin.name}`,
+      accessToken,
+      isVerified: true,
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 //User Management
 const securePassword = async (password) => {

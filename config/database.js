@@ -3,7 +3,7 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 async function dbconnect() {
-    const mongourl = process.env.MONGO_URL
+    const mongourl = process.env.DB_URL
     try {
         if (!mongourl) {
             return;

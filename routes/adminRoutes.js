@@ -19,7 +19,12 @@ import {
   updateAdminPassword,
   logoUpdate,
   downloadQuotationReport,
-  quotationDetails
+  quotationDetails,
+  createAdmin,
+  otpVerifying,
+  resendOtp,
+  forgetPassword,
+  changeAdminPass
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -63,5 +68,10 @@ adminRoute.post('/updateProfilePassword',updateAdminPassword)
 adminRoute.post('/updateLogo',uploadFile,logoUpdate)
 adminRoute.get('/download-report/:adminId',downloadQuotationReport)
 adminRoute.get('/quotationDetails/:qid',quotationDetails);
+adminRoute.post('/createAdmin',createAdmin);
+adminRoute.post('/verifyOtp',otpVerifying);
+adminRoute.post('/resendOtp',resendOtp);
+adminRoute.post('/forgetPassword',forgetPassword);
+adminRoute.post('/changePassword',changeAdminPass);
 
 export default adminRoute;
