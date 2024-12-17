@@ -307,7 +307,7 @@ const sendVerifyMail = async (quotation, admin, client,emails) => {
       });
     });
   } catch (error) {
-    console.error("Email process error:", error.message);
+    console.log("Email process error:", error.message);
     throw error;
   }
 };

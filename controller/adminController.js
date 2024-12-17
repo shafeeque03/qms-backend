@@ -76,7 +76,6 @@ const sendVerifymailOtp = async (name, email, userId) => {
 export const forgetPassword = async(req,res)=>{
   try {
     const{email} = req.body;
-    console.log(email,"heyy")
     const admin = await Admin.findOne({email:email});
     if(!admin){
       return res.status(404).json({message:"User not found"})
@@ -1011,7 +1010,6 @@ export const filteredQuotationDownload = async (req, res) => {
     const quotations = await Quotation.find(filter)
       .sort(sortOptions)
 
-    console.log(quotations,"heyy")
     res.status(200).json({quotations});
   } catch (error) {
     console.error(error.message);
