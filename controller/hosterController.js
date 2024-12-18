@@ -114,7 +114,7 @@ export const changeAdminPassword = async (req, res) => {
     const encryptedPassword = await securePassword(password);
     await Admin.findByIdAndUpdate(
       adminId,
-      { password: encryptedPassword },
+      { password: encryptedPassword, isBlocked: false, passwordTries:0 },
       { new: true }
     );
     res.status(200).json({ message: "Password Updated" });

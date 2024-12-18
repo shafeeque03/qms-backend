@@ -63,7 +63,6 @@ export const userDashData = async (req, res) => {
   }
 };
 
-
 export const filteredData = async (req, res) => {
   try {
     const {
@@ -92,7 +91,10 @@ export const filteredData = async (req, res) => {
 
     // Apply date filtering for `expireDate`
     if (startDate && endDate) {
-      filter.expireDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+      filter.expireDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
     }
 
     // Sort options
@@ -106,11 +108,11 @@ export const filteredData = async (req, res) => {
 
     // Fetch filtered and paginated quotations
     const quotations = await Quotation.find(filter)
-    .skip(skip)
-    .limit(parseInt(limit))
-    .populate("createdBy")
-    .populate("client")
-    .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate("createdBy")
+      .populate("client")
+      .sort(sortOptions);
 
     // Get total count of quotations for the filter
     const totalCount = await Quotation.countDocuments(filter);
@@ -128,8 +130,6 @@ export const filteredData = async (req, res) => {
   }
 };
 
-
-
 export const verifyToken = (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
@@ -145,23 +145,48 @@ export const verifyToken = (req, res, next) => {
   }
 };
 
+const MAX_PASSWORD_TRIES = 10; // Constant for password tries
+
 export const loginUser = async (req, res) => {
   try {
     const { loginId, password } = req.body;
-    const user = await User.findOne({ loginId:loginId });
 
-
+    // Find user by loginId
+    const user = await User.findOne({ loginId });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check if user is blocked
     if (user.is_blocked) {
-      return res.status(401).json({ message: "Unauthorized" });
+      if (user.passwordTries >= MAX_PASSWORD_TRIES){
+        return res.status(403).json({ message: "Your account has been blocked due to multiple incorrect attempts. Please contact the admin." });
+      }
+      return res.status(403).json({ message: "Your account is blocked. Please contact the admin." });
     }
 
+    // Block user if password attempts exceed the limit
+    if (user.passwordTries >= MAX_PASSWORD_TRIES) {
+      user.is_blocked = true;
+      await user.save();
+      return res.status(403).json({
+        message: "Your account has been blocked due to multiple incorrect attempts. Please contact the admin.",
+      });
+    }
+
+    // Compare the entered password with the stored hash
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      user.passwordTries += 1; // Increment incorrect attempts
+      await user.save();
+      return res.status(403).json({ message: "Invalid credentials" });
+    }
+
+    // Reset passwordTries on successful login
+    if (user.passwordTries > 0) {
+      user.passwordTries = 0;
+      await user.save();
     }
 
     // Generate Access Token (short-lived)
@@ -186,14 +211,17 @@ export const loginUser = async (req, res) => {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 
+    // Remove sensitive user data before sending response
+    const { password: _, ...safeUserData } = user.toObject();
+
     res.status(200).json({
-      user,
+      user: safeUserData,
       message: `Welcome ${user.name}`,
       accessToken,
     });
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in loginUser:", error.stack);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -213,23 +241,23 @@ export const logoutUser = (req, res) => {
 };
 
 export const addClient = async (req, res) => {
-  const { value,adminId } = req.body;
+  const { value, adminId } = req.body;
   let client = await Client.create({
     name: value.name,
     email: value.email,
     address: value?.address,
     phone: value?.phone,
-    adminIs:adminId
+    adminIs: adminId,
   });
   res.status(201).json({ client, message: "Client added" });
 };
 
 export const getClients = async (req, res) => {
   try {
-    const{adminId} = req.query
-    const clients = await Client.find({adminIs:adminId})
-  .collation({ locale: "en", strength: 1 })
-  .sort({ name: 1 }); 
+    const { adminId } = req.query;
+    const clients = await Client.find({ adminIs: adminId })
+      .collation({ locale: "en", strength: 1 })
+      .sort({ name: 1 });
     res.status(200).json({ clients });
   } catch (error) {
     console.error(error.message);
@@ -237,13 +265,9 @@ export const getClients = async (req, res) => {
   }
 };
 
-export const getProAndSer = async(req,res)=>{
-  const{adminId} = req.params;
-  let products = await Product.find({adminIs:adminId})||[];
-  let services = await Service.find({adminIs:adminId})||[];
-  res.status(200).json({products,services})
-
-}
-
-
-
+export const getProAndSer = async (req, res) => {
+  const { adminId } = req.params;
+  let products = (await Product.find({ adminIs: adminId })) || [];
+  let services = (await Service.find({ adminIs: adminId })) || [];
+  res.status(200).json({ products, services });
+};

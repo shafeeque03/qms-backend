@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default:false
       },
+      passwordTries: {
+        type: Number,
+        default:0
+      },
       adminIs: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'admin',
