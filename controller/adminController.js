@@ -692,10 +692,11 @@ export const adminLogin = async (req, res) => {
     );
 
     // Send refreshToken securely in HttpOnly cookie
-    res.cookie("refreshToken", refreshToken, {
+    const role = 'admin'
+    res.cookie(`${role}RefreshToken`, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 

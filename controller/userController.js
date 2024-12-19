@@ -12,7 +12,7 @@ export const userDashData = async (req, res) => {
   const { user } = req.query;
 
   if (!user) {
-    return res.status(400).json({ message: "User data is required" });
+    return res.status(401).json({ message: "User data is required" });
   }
 
   try {
@@ -157,7 +157,6 @@ export const verifyToken = (req, res, next) => {
 };
 
 const MAX_PASSWORD_TRIES = 10; // Constant for password tries
-
 export const loginUser = async (req, res) => {
   try {
     const { loginId, password } = req.body;
@@ -215,10 +214,11 @@ export const loginUser = async (req, res) => {
     );
 
     // Send refreshToken securely in HttpOnly cookie
-    res.cookie("refreshToken", refreshToken, {
+    const role = 'user'
+    res.cookie(`${role}RefreshToken`, refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 

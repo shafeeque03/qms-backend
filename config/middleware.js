@@ -1,7 +1,7 @@
-import jwt from 'jsonwebtoken';
-
 export const refreshToken = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken; // Extract from cookies
+  const { role } = req.body;  // Ensure that the role is passed from the frontend
+  console.log(role,"this is role")
+  let refreshToken = req.cookies[`${role}RefreshToken`];  // Role-specific cookie
 
   if (!refreshToken) {
     return res.status(401).json("You're not authenticated");
@@ -10,7 +10,7 @@ export const refreshToken = async (req, res) => {
   jwt.verify(refreshToken, process.env.REFRESH_SECRET_KEY, (err, user) => {
     if (err) return res.status(403).json("Invalid refresh token");
 
-    // Generate new tokens
+    // Generate new tokens for the role
     const newAccessToken = jwt.sign(
       { id: user.id },
       process.env.ACCESS_SECRET_KEY,
@@ -23,8 +23,8 @@ export const refreshToken = async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // Update refreshToken in cookies
-    res.cookie("refreshToken", newRefreshToken, {
+    // Update role-specific refresh token in cookies
+    res.cookie(`${role}RefreshToken`, newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",

@@ -1,4 +1,4 @@
-import Jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { serialize } from "cookie";
 import bcrypt from "bcrypt";
 import Admin from "../model/adminModel.js";
@@ -87,28 +87,31 @@ export const verifyHosterOtp = async (req, res) => {
     const { otp } = req.body;
     let dbOtp = await HotpModel.findOne({ email: process.env.HOSTER_ID });
     if (otp == dbOtp.otp) {
-      const token = Jwt.sign(
-        {
-          role: "hoster",
-        },
-        process.env.HOSTER_SECRET,
-        {
-          expiresIn: "12h",
-        }
+      const accessToken = jwt.sign(
+        { email: process.env.HOSTER_ID },
+        process.env.ACCESS_SECRET_KEY,
+        { expiresIn: "12h" }
       );
-      res.setHeader(
-        "Set-Cookie",
-        serialize("hosterToken", token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          maxAge: 3600, // 1 hour
-          path: "/",
-        })
+
+      const refreshToken = jwt.sign(
+        { email: process.env.HOSTER_ID },
+        process.env.REFRESH_SECRET_KEY,
+        { expiresIn: "7d" }
       );
-      await HotpModel.deleteMany({})
+
+      // Send refreshToken securely in HttpOnly cookie
+      const role = "hoster";
+      res.cookie(`${role}RefreshToken`, refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+      await HotpModel.deleteMany({});
       const hoster = { name: "hoster" };
-      return res.status(200).json({ hoster, token, message: "Login Verified" });
+      return res
+        .status(200)
+        .json({ hoster, accessToken, message: "Login Verified" });
     } else {
       return res.status(403).json({ message: "Enter Valid OTP" });
     }
@@ -121,7 +124,7 @@ export const verifyHosterOtp = async (req, res) => {
 export const resendOtp = async (req, res) => {
   try {
     const hosterId = process.env.HOSTER_ID;
-  await HotpModel.deleteMany({})
+    await HotpModel.deleteMany({});
     await sendVerifymailOtp(hosterId);
     return res.status(200).json({ message: "OTP has been send" });
   } catch (error) {
