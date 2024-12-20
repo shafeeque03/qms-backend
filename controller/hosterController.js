@@ -32,18 +32,103 @@ const sendVerifymailOtp = async (email) => {
     const mailOption = {
       from: "qmsalfarooq.com",
       to: email,
-      subject: "For OTP verification",
+      subject: "🔐 Your Secure Verification Code",
       text: `Your OTP is: ${otp}`,
       html: `
-      <html>
-          <body style = "backgroundColor":blue>
-              <p style="color:#2A5948">Hello User</p>
-              <h3 style="color:#2A5948">Your OTP for verification is: <span style="font-weight: bold; color: #3498db;">${otp}</span></h3>
-              <p style="color:#2A5948">If you didn't request this OTP or need further assistance, please connect us</p>
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="
+            margin: 0;
+            padding: 0;
+            background-color: #0a192f;
+            font-family: 'Arial', sans-serif;
+          ">
+            <div style="
+              max-width: 600px;
+              margin: 20px auto;
+              padding: 20px;
+              background: linear-gradient(145deg, #0f2847, #1a365d);
+              border-radius: 15px;
+              box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+              backdrop-filter: blur(4px);
+              border: 1px solid rgba(255, 255, 255, 0.18);
+            ">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="
+                  color: #64ffda;
+                  font-size: 28px;
+                  margin: 0;
+                  text-transform: uppercase;
+                  letter-spacing: 2px;
+                ">Verification Required</h1>
+              </div>
+              
+              <div style="
+                background: rgba(255, 255, 255, 0.05);
+                padding: 20px;
+                border-radius: 10px;
+                margin: 20px 0;
+              ">
+                <p style="
+                  color: #8892b0;
+                  font-size: 16px;
+                  line-height: 1.6;
+                  margin: 0;
+                ">Hello,</p>
+                
+                <p style="
+                  color: #8892b0;
+                  font-size: 16px;
+                  line-height: 1.6;
+                  margin: 15px 0;
+                ">Your verification code is:</p>
+                
+                <div style="
+                  background: linear-gradient(90deg, #64ffda, #00b4d8);
+                  padding: 20px;
+                  border-radius: 8px;
+                  text-align: center;
+                  margin: 25px 0;
+                ">
+                  <h2 style="
+                    color: #0a192f;
+                    font-size: 32px;
+                    margin: 0;
+                    letter-spacing: 5px;
+                    font-weight: bold;
+                  ">${otp}</h2>
+                </div>
+                
+                <p style="
+                  color: #8892b0;
+                  font-size: 14px;
+                  line-height: 1.6;
+                  margin: 15px 0;
+                ">This code will expire in 3 minutes for security purposes.</p>
+              </div>
+              
+              <div style="
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                padding-top: 20px;
+                margin-top: 20px;
+              ">
+                <p style="
+                  color: #64ffda;
+                  font-size: 12px;
+                  text-align: center;
+                  margin: 0;
+                ">If you didn't request this code, please ignore this email.</p>
+              </div>
+            </div>
           </body>
-      </html>
-  `,
+        </html>
+      `,
     };
+
     await HotpModel.deleteMany({});
     const verificationOtp = new HotpModel({
       email: email,
@@ -58,7 +143,7 @@ const sendVerifymailOtp = async (email) => {
       if (error) {
         console.log(error.message);
       } else {
-        console.log(otp + "," + "email has been send to:", info.response);
+        console.log(otp + "," + "email has been sent to:", info.response);
       }
     });
   } catch (error) {

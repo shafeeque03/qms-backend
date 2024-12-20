@@ -12,6 +12,7 @@ import { Readable } from 'stream';
 import { sendWhatsAppMessage } from "../config/whatsAppConfig.js";
 import pdf from "html-pdf"
 import puppeteer from "puppeteer"
+import fetch from "node-fetch";
 
 const convertHtmlToPdf = async (htmlContent) => {
   const browser = await puppeteer.launch();
@@ -191,7 +192,7 @@ export const updateQuotationDetails = async (req, res) => {
 
     // Send Email
     const adminName = adminDetails.name;
-    await sendVerifyMail(quotation, adminName, clientDetails, emails);
+    await sendVerifyMail(quotation, adminName, clientDetails, emails,from);
 
     res.status(200).json({
       message: "Quotation updated successfully!",
@@ -205,7 +206,7 @@ export const updateQuotationDetails = async (req, res) => {
 
 
 
-const sendVerifyMail = async (quotation, admin, client,emails) => {
+const sendVerifyMail = async (quotation, admin, client, emails, from) => {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -218,82 +219,119 @@ const sendVerifyMail = async (quotation, admin, client,emails) => {
       },
     });
 
+    // Fetch PDF as buffer if needed, or use a file path
+    const pdfBuffer = await fetch(quotation.proposal).then(res => res.buffer());
+
     const mailOptions = {
       from: "qmsalfarooq.com",
       to: emails,
-      subject: `Quotation Proposal from ${admin}`,
+      subject: `📊 Proposal from ${from.name} - Review Requested`,
       html: `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-          }
-          .container {
-            background-color: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-          }
-          .header {
-            background-color: #2A5948;
-            color: white;
-            text-align: center;
-            padding: 10px;
-            border-radius: 8px 8px 0 0;
-          }
-          .content {
-            margin-top: 20px;
-          }
-          .proposal-link {
-            display: inline-block;
-            background-color: #3498db;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 20px;
-          }
-          .footer {
-            margin-top: 30px;
-            text-align: center;
-            font-size: 0.8em;
-            color: #777;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Quotation Proposal</h1>
-          </div>
-          <div class="content">
-            <p>Hello,</p>
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+          <style>
+            body {
+              font-family: 'Inter', sans-serif;
+              line-height: 1.6;
+              margin: 0;
+              padding: 0;
+              background: #f8fafc;
+              color: #1e293b;
+            }
             
-            <p>Here is the new quotation proposal from ${admin}. Please review the details below:</p>
+            .wrapper {
+              max-width: 650px;
+              margin: 0 auto;
+              padding: 20px;
+            }
             
-            <a href="${quotation.proposal}" class="proposal-link">View Proposal</a>
+            .container {
+              background: linear-gradient(145deg, #ffffff, #f8fafc);
+              border-radius: 16px;
+              padding: 2rem;
+              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+                         0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            }
             
-            <p>If you cannot click the button, please copy and paste the following link into your browser:</p>
-            <p>${quotation.proposal}</p>
+            .header {
+              background: linear-gradient(135deg, #0ea5e9, #2563eb);
+              margin: -2rem -2rem 2rem -2rem;
+              padding: 2rem;
+              border-radius: 16px 16px 0 0;
+              text-align: center;
+            }
+            
+            .header h1 {
+              color: #ffffff;
+              font-size: 28px;
+              margin: 0;
+            }
+            
+            .content {
+              padding: 1rem 0;
+            }
+            
+            .highlight-box {
+              background: rgba(59, 130, 246, 0.05);
+              border-left: 4px solid #3b82f6;
+              padding: 1.5rem;
+              margin: 1.5rem 0;
+              border-radius: 0 8px 8px 0;
+            }
+            
+            .proposal-button {
+              display: inline-block;
+              background: linear-gradient(135deg, #0ea5e9, #2563eb);
+              color: white;
+              padding: 1rem 2rem;
+              border-radius: 8px;
+              text-decoration: none;
+              font-weight: 500;
+            }
+            
+            .footer {
+              margin-top: 2rem;
+              text-align: center;
+              font-size: 0.875rem;
+              color: #64748b;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="wrapper">
+            <div class="container">
+              <div class="header">
+                <h1>Proposal</h1>
+              </div>
+              <div class="content">
+                <p>Dear Valued Partner,</p>
+                <p>We are pleased to share a detailed quotation proposal from <strong>${from.name}</strong>, designed to meet your requirements.</p>
+                <p>Please review the proposal by clicking the link below or by opening the attached PDF file:</p>
+                <center>
+                  <a href="${quotation.proposal}" class="proposal-button">Review Full Proposal</a>
+                </center>
+              </div>
+              <div class="footer">
+                <p>This proposal is confidential and intended for the recipient only.</p>
+                <p>© ${new Date().getFullYear()} QMS Solutions. All rights reserved.</p>
+              </div>
+            </div>
           </div>
-          
-          <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} Your Company Name</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `};
+        </body>
+        </html>
+      `,
+      attachments: [
+        {
+          filename: "proposal.pdf",
+          content: pdfBuffer, // Attach PDF as a buffer
+          contentType: "application/pdf",
+        },
+      ],
+    };
 
     return new Promise((resolve, reject) => {
       transporter.sendMail(mailOptions, (error, info) => {
@@ -311,6 +349,7 @@ const sendVerifyMail = async (quotation, admin, client,emails) => {
     throw error;
   }
 };
+
 
 
 
@@ -339,13 +378,12 @@ export const generateQuotationPDF = async (details) => {
   const formatTextAreaContent = (text) => {
     if (!text) return '';
     return text
-      .replace(/&/g, '&amp;')   // Escape HTML special characters
-      .replace(/</g, '&lt;')    // Prevent XSS
-      .replace(/>/g, '&gt;')    // Prevent XSS
-      .replace(/\n/g, '<br>');  // Convert newlines to <br> tags
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
   };
 
-  // Create HTML template for PDF
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -354,44 +392,58 @@ export const generateQuotationPDF = async (details) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quotation #${qtnId}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     :root {
-    --primary-color: #2980b9;
-    --secondary-color: #3498db;
-    --text-color: #333;
-    --light-background: #f1f8ff;
-    --blueColour: #1600e0;
-  }
+      --primary-color: #2D3BF0;
+      --secondary-color: #6C72CB;
+      --accent-color: #4FACFE;
+      --text-color: #2A2B2E;
+      --light-background: rgba(79, 172, 254, 0.1);
+      --gradient-primary: linear-gradient(135deg, #4FACFE 0%, #2D3BF0 100%);
+      --box-shadow: 0 8px 32px rgba(45, 59, 240, 0.15);
+      --border-radius: 16px;
+    }
 
     * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  @page {
-    size: A4;
-    margin: 20mm 20mm 20mm 20mm; /* Top, Right, Bottom, Left */
-  }
+    @page {
+      size: A4;
+      margin: 20mm 20mm 20mm 20mm;
+    }
 
     body {
-    font-family: 'Roboto', sans-serif;
-    line-height: 1.6;
-    color: var(--text-color);
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 5px;
-    font-size: 14px;
-  }
+      font-family: 'Inter', sans-serif;
+      line-height: 1.6;
+      color: var(--text-color);
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      font-size: 14px;
+      background-color: #ffffff;
+    }
 
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 2px solid var(--primary-color);
-      padding-bottom: 15px;
-      margin-bottom: 20px;
+      padding: 20px;
+      background: var(--gradient-primary);
+      border-radius: var(--border-radius);
+      margin-bottom: 30px;
+      box-shadow: var(--box-shadow);
+    }
+
+    .header h1 {
+      color: white;
+      font-weight: 600;
+      font-size: 2.5em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .logo {
@@ -399,69 +451,137 @@ export const generateQuotationPDF = async (details) => {
       max-height: 100px;
     }
 
-    .hightLightText {
-      color: var(--blueColour);
-      font-weight: bold;
-      text-align: center;
+    .quotation-details {
+      background: var(--light-background);
+      padding: 25px;
+      border-radius: var(--border-radius);
+      margin-bottom: 30px;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(79, 172, 254, 0.2);
     }
 
-    .quotation-details {
-      background-color: var(--light-background);
-      padding: 15px;
-      border-radius: 5px;
-      margin-bottom: 20px;
-      font-weight: bold;
+    .hightLightText {
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      font-weight: 700;
+      text-align: center;
+      font-size: 1.8em;
+      margin: 20px 0;
+      letter-spacing: 1px;
     }
 
     .contact-details {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 20px;
+      gap: 30px;
+      margin-bottom: 30px;
     }
 
     .contact-section {
       width: 48%;
+      padding: 25px;
+      background: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+    }
+
+    .section-title {
+      font-weight: 600;
+      margin-bottom: 15px;
+      margin-top: 15px;
+      color: var(--primary-color);
+      font-size: 1.2em;
+      letter-spacing: 0.5px;
+      position: relative;
+      padding-left: 15px;
+    }
+
+    .section-title::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 20px;
+      background: var(--gradient-primary);
+      border-radius: 2px;
     }
 
     .table {
       width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      border-radius: 7px;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-bottom: 30px;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      box-shadow: var(--box-shadow);
     }
 
     .table th, .table td {
-      border: 1px solid #ddd;
-      padding: 10px;
+      padding: 15px;
       text-align: left;
+      border-bottom: 1px solid rgba(79, 172, 254, 0.2);
     }
 
     .table th {
-      background-color: var(--secondary-color);
+      background: var(--gradient-primary);
       color: white;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.85em;
+      letter-spacing: 1px;
+    }
+
+    .table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table tbody tr:hover {
+      background-color: var(--light-background);
     }
 
     .financial-summary {
       margin-left: auto;
-      width: 250px;
+      width: 300px;
+      background: white;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+      overflow: hidden;
     }
 
     .financial-summary .table {
-      width: 100%;
+      box-shadow: none;
+      margin-bottom: 0;
     }
 
-    .section-title {
-      font-weight: bold;
-      margin-bottom: 10px;
-      margin-top: 10px;
-      color: var(--primary-color);
+    .financial-summary .table td {
+      padding: 12px 20px;
+    }
+
+    .financial-summary .table tr:last-child {
+      background: var(--gradient-primary);
+      color: white;
+      font-weight: 600;
     }
 
     .footer {
-      margin-top: 30px;
+      margin-top: 40px;
       text-align: center;
       font-size: 12px;
-      color: #888;
+      color: var(--secondary-color);
+      padding: 20px;
+      border-top: 1px solid rgba(79, 172, 254, 0.2);
+    }
+
+    @media print {
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
 </head>
@@ -475,9 +595,9 @@ export const generateQuotationPDF = async (details) => {
     <div>Quotation #: ${qtnId || 'N/A'}</div>
     <div>Date Created: ${createdOn ? new Date(createdOn).toLocaleDateString() : 'N/A'}</div>
     <div>Expiration Date: ${expireDate ? new Date(expireDate).toLocaleDateString() : 'N/A'}</div>
-    </div>
+  </div>
     
-    <div class="hightLightText"> 
+  <div class="hightLightText"> 
     <h3>${title || 'Proposal'}</h3>
   </div>
 
@@ -553,16 +673,16 @@ export const generateQuotationPDF = async (details) => {
     <table class="table">
       <tbody>
         <tr>
-          <td>Total Amount</td>
-          <td>${totalAmount.toFixed(2)}</td>
+          <td>Subtotal</td>
+          <td>${subTotal.toFixed(2)}</td>
         </tr>
         <tr>
           <td>${taxName}</td>
           <td>${tax.toFixed(2)}</td>
         </tr>
         <tr>
-          <td>Subtotal</td>
-          <td>${subTotal.toFixed(2)}</td>
+          <td>Total Amount</td>
+          <td>${totalAmount.toFixed(2)}</td>
         </tr>
       </tbody>
     </table>
@@ -572,12 +692,12 @@ export const generateQuotationPDF = async (details) => {
   ${termsAndConditions ? `
     <div class="section-title">Terms and Conditions</div>
     <p>${formatTextAreaContent(termsAndConditions)}</p>
-    ` : ''}
+  ` : ''}
     
-    ${description ? `
+  ${description ? `
     <div class="section-title">Description</div>
     <p>${formatTextAreaContent(description)}</p>
-    ` : ''}
+  ` : ''}
 
   <div class="footer">
     Generated on: ${new Date().toLocaleString()}
@@ -586,10 +706,7 @@ export const generateQuotationPDF = async (details) => {
 </html>
   `;
 
-  // Convert HTML to PDF using a library like html-pdf or puppeteer
-  // This is a placeholder - you'll need to implement actual PDF conversion
   const pdfBuffer = await convertHtmlToPdf(htmlContent);
-
   return pdfBuffer;
 };
 
@@ -781,7 +898,7 @@ export const createQuotation = async (req, res) => {
     });
 
     const newQtn = await newQuotation.save();
-    await sendVerifyMail(newQtn, adminName, clientDetails,emails);
+    await sendVerifyMail(newQtn, adminName, clientDetails,emails, from);
     // await sendWhatsAppMessage(clientDetails, newQtn, adminName);
 
     res.status(200).json({ 

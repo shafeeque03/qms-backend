@@ -1,5 +1,5 @@
 import express from 'express';
-import { refreshToken } from '../config/middleware.js';
+import { refreshToken } from '../config/refreshToken.js';
 
 const authRoute = express();
 
