@@ -119,12 +119,17 @@ export const otpVerifying = async (req, res) => {
   try {
     const { adminId, otp } = req.body;
     const otpData = await otpModel.findOne({ userId: adminId });
+    console.log(otpData,"otpDataaaa")
+
+
+    console.log(adminId,otp,"jijiij")
 
     const correctOtp = otpData.otp;
     if (otpData && otpData.expiresAt < Date.now()) {
       return res.status(401).json({ message: "Email OTP has expired" });
     }
     if (correctOtp == otp) {
+      console.log("its right otp")
       await otpModel.deleteMany({ userId: adminId });
       await Admin.updateOne({ _id: adminId }, { $set: { isVerified: true } });
       res.status(200).json({
@@ -588,7 +593,7 @@ export const dashboardData = async (req, res) => {
           _id: {
             $dateToString: { format: "%Y-%m-%d", date: "$approvedOn" }, // Group by day
           },
-          totalAmount: { $sum: "$totalAmount" },
+          totalAmount: { $sum: "$subTotal" },
         },
       },
       {
@@ -685,20 +690,20 @@ export const adminLogin = async (req, res) => {
     );
 
     // Generate Refresh Token (long-lived)
-    const refreshToken = jwt.sign(
-      { id: admin._id },
-      process.env.REFRESH_SECRET_KEY,
-      { expiresIn: "7d" }
-    );
+    // const refreshToken = jwt.sign(
+    //   { id: admin._id },
+    //   process.env.REFRESH_SECRET_KEY,
+    //   { expiresIn: "7d" }
+    // );
 
     // Send refreshToken securely in HttpOnly cookie
-    const role = 'admin'
-    res.cookie(`${role}RefreshToken`, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    });
+    // const role = 'admin'
+    // res.cookie(`${role}RefreshToken`, refreshToken, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'strict',
+    //   expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    // });
 
     res.status(200).json({
       admin,

@@ -1,6 +1,5 @@
 export const refreshToken = async (req, res) => {
   const { role } = req.body;  // Ensure that the role is passed from the frontend
-  console.log(role,"this is role")
   let refreshToken = req.cookies[`${role}RefreshToken`];  // Role-specific cookie
 
   if (!refreshToken) {

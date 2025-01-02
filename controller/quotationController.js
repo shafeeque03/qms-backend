@@ -392,17 +392,18 @@ export const generateQuotationPDF = async (details) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quotation #${qtnId}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
     
     :root {
-      --primary-color: #2D3BF0;
-      --secondary-color: #6C72CB;
-      --accent-color: #4FACFE;
-      --text-color: #2A2B2E;
-      --light-background: rgba(79, 172, 254, 0.1);
-      --gradient-primary: linear-gradient(135deg, #4FACFE 0%, #2D3BF0 100%);
-      --box-shadow: 0 8px 32px rgba(45, 59, 240, 0.15);
-      --border-radius: 16px;
+      --primary-color: #1a56db;
+      --secondary-color: #2563eb;
+      --accent-color: #3b82f6;
+      --text-color: #111827;
+      --text-secondary: #4b5563;
+      --border-color: #e5e7eb;
+      --background-light: #f3f4f6;
+      --box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+      --border-radius: 6px;
     }
 
     * {
@@ -417,8 +418,8 @@ export const generateQuotationPDF = async (details) => {
     }
 
     body {
-      font-family: 'Inter', sans-serif;
-      line-height: 1.6;
+      font-family: 'Open Sans', sans-serif;
+      line-height: 1.5;
       color: var(--text-color);
       max-width: 800px;
       margin: 0 auto;
@@ -431,46 +432,41 @@ export const generateQuotationPDF = async (details) => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 20px;
-      background: var(--gradient-primary);
-      border-radius: var(--border-radius);
+      padding: 20px 0;
       margin-bottom: 30px;
-      box-shadow: var(--box-shadow);
+      border-bottom: 2px solid var(--border-color);
     }
 
     .header h1 {
-      color: white;
+      color: var(--primary-color);
       font-weight: 600;
-      font-size: 2.5em;
+      font-size: 24px;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
     }
 
     .logo {
       max-width: 150px;
-      max-height: 100px;
+      max-height: 80px;
+      object-fit: contain;
     }
 
     .quotation-details {
-      background: var(--light-background);
-      padding: 25px;
+      background: var(--background-light);
+      padding: 15px 20px;
       border-radius: var(--border-radius);
       margin-bottom: 30px;
-      font-weight: 500;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(79, 172, 254, 0.2);
+      font-size: 13px;
+      color: var(--text-secondary);
     }
 
-    .hightLightText {
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      font-weight: 700;
+    .quotation-title {
+      color: var(--primary-color);
+      font-weight: 600;
       text-align: center;
-      font-size: 1.8em;
+      font-size: 20px;
       margin: 20px 0;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
     }
 
     .contact-details {
@@ -482,89 +478,66 @@ export const generateQuotationPDF = async (details) => {
 
     .contact-section {
       width: 48%;
-      padding: 25px;
-      background: white;
+      padding: 20px;
+      background: #ffffff;
       border-radius: var(--border-radius);
-      box-shadow: var(--box-shadow);
+      border: 1px solid var(--border-color);
     }
 
     .section-title {
       font-weight: 600;
       margin-bottom: 15px;
-      margin-top: 15px;
       color: var(--primary-color);
-      font-size: 1.2em;
-      letter-spacing: 0.5px;
-      position: relative;
-      padding-left: 15px;
-    }
-
-    .section-title::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 4px;
-      height: 20px;
-      background: var(--gradient-primary);
-      border-radius: 2px;
+      font-size: 16px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 8px;
     }
 
     .table {
       width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
+      border-collapse: collapse;
       margin-bottom: 30px;
-      border-radius: var(--border-radius);
-      overflow: hidden;
-      box-shadow: var(--box-shadow);
+      font-size: 13px;
     }
 
     .table th, .table td {
-      padding: 15px;
+      padding: 12px 15px;
       text-align: left;
-      border-bottom: 1px solid rgba(79, 172, 254, 0.2);
+      border: 1px solid var(--border-color);
     }
 
     .table th {
-      background: var(--gradient-primary);
-      color: white;
+      background: var(--background-light);
+      color: var(--text-color);
       font-weight: 600;
       text-transform: uppercase;
-      font-size: 0.85em;
-      letter-spacing: 1px;
+      font-size: 12px;
+      letter-spacing: 0.5px;
     }
 
-    .table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .table tbody tr:hover {
-      background-color: var(--light-background);
+    .table tbody tr:nth-child(even) {
+      background-color: var(--background-light);
     }
 
     .financial-summary {
       margin-left: auto;
       width: 300px;
-      background: white;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
       border-radius: var(--border-radius);
-      box-shadow: var(--box-shadow);
-      overflow: hidden;
+      margin-bottom: 30px;
     }
 
     .financial-summary .table {
-      box-shadow: none;
       margin-bottom: 0;
     }
 
     .financial-summary .table td {
-      padding: 12px 20px;
+      padding: 10px 15px;
     }
 
     .financial-summary .table tr:last-child {
-      background: var(--gradient-primary);
-      color: white;
+      background: var(--background-light);
       font-weight: 600;
     }
 
@@ -572,9 +545,9 @@ export const generateQuotationPDF = async (details) => {
       margin-top: 40px;
       text-align: center;
       font-size: 12px;
-      color: var(--secondary-color);
-      padding: 20px;
-      border-top: 1px solid rgba(79, 172, 254, 0.2);
+      color: var(--text-secondary);
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
     }
 
     @media print {
@@ -588,7 +561,7 @@ export const generateQuotationPDF = async (details) => {
 <body>
   <div class="header">
     <img src="${logo?.preview || '/placeholder-logo.png'}" alt="Company Logo" class="logo">
-    <h1>Proposal</h1>
+    <h1>Quotation</h1>
   </div>
 
   <div class="quotation-details">
@@ -597,20 +570,20 @@ export const generateQuotationPDF = async (details) => {
     <div>Expiration Date: ${expireDate ? new Date(expireDate).toLocaleDateString() : 'N/A'}</div>
   </div>
     
-  <div class="hightLightText"> 
-    <h3>${title || 'Proposal'}</h3>
+  <div class="quotation-title"> 
+    ${title || 'Business Proposal'}
   </div>
 
   <div class="contact-details">
     <div class="contact-section">
-      <div class="section-title">From:</div>
+      <div class="section-title">From</div>
       <div>${from.name}</div>
       <div>Email: ${from.email}</div>
       <div>Phone: ${from.phone}</div>
       <div>Address: ${from.address}</div>
     </div>
     <div class="contact-section">
-      <div class="section-title">To:</div>
+      <div class="section-title">To</div>
       <div>${clientDetails.name}</div>
       <div>Email: ${clientDetails.email}</div>
       <div>Phone: ${clientDetails.phone}</div>
@@ -673,16 +646,16 @@ export const generateQuotationPDF = async (details) => {
     <table class="table">
       <tbody>
         <tr>
-          <td>Subtotal</td>
-          <td>${subTotal.toFixed(2)}</td>
+          <td>Total</td>
+          <td>${totalAmount.toFixed(2)}</td>
         </tr>
         <tr>
           <td>${taxName}</td>
           <td>${tax.toFixed(2)}</td>
         </tr>
         <tr>
-          <td>Total Amount</td>
-          <td>${totalAmount.toFixed(2)}</td>
+          <td>SubTotal</td>
+          <td>${subTotal.toFixed(2)}</td>
         </tr>
       </tbody>
     </table>

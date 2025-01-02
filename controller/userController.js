@@ -207,20 +207,20 @@ export const loginUser = async (req, res) => {
     );
 
     // Generate Refresh Token (long-lived)
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      process.env.REFRESH_SECRET_KEY,
-      { expiresIn: "7d" }
-    );
+    // const refreshToken = jwt.sign(
+    //   { id: user._id },
+    //   process.env.REFRESH_SECRET_KEY,
+    //   { expiresIn: "7d" }
+    // );
 
     // Send refreshToken securely in HttpOnly cookie
-    const role = 'user'
-    res.cookie(`${role}RefreshToken`, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    });
+    // const role = 'user'
+    // res.cookie(`${role}RefreshToken`, refreshToken, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production',
+    //   sameSite: 'strict',
+    //   expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    // });
 
     // Remove sensitive user data before sending response
     const { password: _, ...safeUserData } = user.toObject();
