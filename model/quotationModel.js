@@ -64,9 +64,27 @@ const QuotationSchema = new mongoose.Schema({
         default: 'pending'
     },
     createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'user',
-        required: true
+        name:{
+            type:String,
+            required: true
+        },
+        email:{
+            type:String
+        },
+        isAdmin:{
+            type: Boolean
+        },
+        id:{
+            type: String
+        }
+    },
+    statusChangedBy:{
+        name:{
+            type:String,
+        },
+        email:{
+            type:String
+        },
     },
     client: {
         type: mongoose.Schema.Types.ObjectId,

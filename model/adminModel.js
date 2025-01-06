@@ -18,19 +18,19 @@ const adminSchema = new mongoose.Schema(
     address: {
       address1: {
         type: String,
-        default: ""
+        default: "",
       },
       address2: {
         type: String,
-        default: ""
+        default: "",
       },
       pincode: {
         type: Number,
       },
     },
-    logo:{
+    logo: {
       type: String,
-      default: ""
+      default: "",
     },
     password: {
       type: String,
@@ -42,11 +42,18 @@ const adminSchema = new mongoose.Schema(
     },
     passwordTries: {
       type: Number,
-      default:0
+      default: 0,
     },
-    isVerified:{
+    isVerified: {
       type: Boolean,
-      default: false
+      default: false,
+    },
+    adminIs: {
+      type: String,
+    },
+    isSuper:{
+      type: Boolean,
+      default: true
     }
   },
   { timestamps: true }

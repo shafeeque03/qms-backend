@@ -27,7 +27,14 @@ import {
   changeAdminPass,
   addCompany,
   fetchCompaies,
-  updateCompany
+  updateCompany,
+  fetchAllAdmins,
+  addAdmin,
+  updateAdminData,
+  chnageSubAdminPass,
+  addClient,
+  getProAndSer,
+  fetchClients
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -35,6 +42,7 @@ import {
   getServices,
 } from "../controller/proAndSerController.js";
 import { uploadFile } from "../middleware/uploadMiddleware.js";
+import { changeQtnStatus, createQuotation } from "../controller/quotationController.js";
 
 
 
@@ -45,6 +53,24 @@ adminRoute.get("/getUser", getUser);
 adminRoute.get("/userDetails/:userId", getUserDetails);
 adminRoute.patch("/updateUser", updateUserData);
 adminRoute.patch("/changeUserPassword", updateUserPassword);
+
+adminRoute.post('/addClient', addClient);
+adminRoute.get('/getProAndSer/:adminId',getProAndSer);
+adminRoute.post('/createQuotation',uploadFile,createQuotation);
+adminRoute.get('/fetchClients', fetchClients);
+
+adminRoute.patch('/qtnStatusChange',changeQtnStatus);
+
+
+//SubadminControlls
+adminRoute.get("/getAdmins/:adminId", fetchAllAdmins);
+adminRoute.post("/addAdmin", addAdmin);
+adminRoute.patch("/updateAdmin", updateAdminData);
+adminRoute.patch("/changeSubAdminPassword", chnageSubAdminPass);
+
+
+
+
 
 //productAndServiceControlls
 adminRoute.get("/getProducts",getProducts)

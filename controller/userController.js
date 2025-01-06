@@ -19,32 +19,32 @@ export const userDashData = async (req, res) => {
   try {
     // Fetch total quotations created by the user with the specified admin status
     const totalQuotations = await Quotation.countDocuments({
-      createdBy: user._id,
+      'createdBy.id': user._id,
       adminIs: user.adminIs,
     });
 
     // Fetch count of quotations grouped by their statuses
     const approvedQuotations = await Quotation.countDocuments({
-      createdBy: user._id,
+      'createdBy.id': user._id,
       adminIs: user.adminIs,
       status: "accepted",
     });
 
     const rejectedQuotations = await Quotation.countDocuments({
-      createdBy: user._id,
+      'createdBy.id': user._id,
       adminIs: user.adminIs,
       status: "rejected",
     });
 
     const pendingQuotations = await Quotation.countDocuments({
-      createdBy: user._id,
+      'createdBy.id': user._id,
       adminIs: user.adminIs,
       status: "pending",
     });
 
     // Fetch last 10 quotations created by the user, sorted by createdAt descending
     const lastTenQuotations = await Quotation.find({
-      createdBy: user._id,
+      'createdBy.id': user._id,
       adminIs: user.adminIs,
     })
       .sort({ createdAt: -1 }) // Sort by most recent
@@ -80,7 +80,7 @@ export const filteredData = async (req, res) => {
     const userId = user._id;
 
     // Initialize filter with `createdBy` filter
-    const filter = { createdBy: userId };
+    const filter = { 'createdBy.id': userId };
 
     // Apply search term filtering for `quotationId`
     if (searchTerm) {
@@ -122,7 +122,6 @@ export const filteredData = async (req, res) => {
     const quotations = await Quotation.find(filter)
       .skip(skip)
       .limit(parseInt(limit))
-      .populate("createdBy")
       .populate("client")
       .sort(sortOptions);
 

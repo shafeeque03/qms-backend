@@ -12,12 +12,136 @@ import otpModel from "../model/otpModel.js";
 import cloudinary from "../util/cloudinary.js";
 import nodemailer from "nodemailer";
 import Company from "../model/companyModel.js";
+import SubAdmin from "../model/subAdminModel.js"
+
 
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 
 import PDFDocument from "pdfkit";
 import pdf from "html-pdf";
+
+export const addAdmin = async (req, res) => {
+  try {
+    const { userName, email, phone, loginId, password, admin } = req.body;
+
+    // Validate input data
+    if (!userName || !email || !phone || !loginId || !password || !admin) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Check if email or loginId already exists
+    const existingUser = await SubAdmin.findOne({
+      $or: [{ email }, { loginId }],
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Admin with the same email or login ID already exists",
+      });
+    }
+
+    // Encrypt password
+    const encryptedPassword = await securePassword(password);
+
+    // Create and save new user
+    const user = await SubAdmin.create({
+      name: userName,
+      email,
+      phone,
+      loginId,
+      password: encryptedPassword,
+      adminIs: admin._id,
+    });
+
+    res.status(201).json({ message: "Admin added successfully", user });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const chnageSubAdminPass = async (req, res) => {
+  try {
+    const { userId, password } = req.body;
+    if (password.newPassword != password.confirmPassword) {
+      return res.status(403).json({ message: "Passwords do not match" });
+    }
+    if (password.newPassword.trim() == "") {
+      return res.status(403).json({ message: "Please Enter a valid password" });
+    }
+    const encryptedPassword = await securePassword(password.newPassword);
+    await SubAdmin.findByIdAndUpdate(
+      userId,
+      { password: encryptedPassword, is_blocked: false, passwordTries: 0 },
+      { new: true }
+    );
+    res.status(200).json({ message: "Password Updated" });
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateAdminData = async (req, res) => {
+  try {
+    const { userId, values } = req.body;
+
+    // Check for required data
+    if (!userId || !values) {
+      return res.status(400).json({ message: "Invalid request data" });
+    }
+
+    // Check if another user has the same email or loginId
+    const existingUser = await SubAdmin.findOne({
+      $or: [{ email: values.email }, { loginId: values.loginId }],
+      _id: { $ne: userId }, // Exclude the current user
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Admin with the same email or login ID already exists",
+      });
+    }
+
+    // Update user data
+    const user = await SubAdmin.findByIdAndUpdate(
+      userId,
+      {
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        loginId: values.loginId,
+        is_blocked: values.isBlocked,
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Admin details updated", user });
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+export const fetchAllAdmins = async(req,res)=>{
+  try {
+    const{adminId} = req.params;
+    if(!adminId){
+      return res.status(400).json({message:"Admin ID Missing"})
+    }
+    const allAdmins = await SubAdmin.find({adminIs:adminId});
+    res.status(200).json({allAdmins})
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
 
 export const updateCompany = async (req, res) => {
   try {
@@ -256,6 +380,7 @@ export const createAdmin = async (req, res) => {
       password: encryptedPassword,
     });
     const adminData = await admin.save();
+    await Admin.findByIdAndUpdate(adminData._id, { adminIs: adminData._id });
     await sendVerifymailOtp(adminData.name, adminData.email, adminData._id);
     res.status(201).json({
       message: `otp has send to ${email}`,
@@ -271,10 +396,6 @@ export const quotationDetails = async (req, res) => {
   try {
     const { qid } = req.params;
     const quotation = await Quotation.findById(qid)
-      .populate({
-        path: "createdBy",
-        select: "name phone email ",
-      })
       .populate({
         path: "client",
         select: "name email phone address",
@@ -724,8 +845,13 @@ export const dashboardData = async (req, res) => {
 const MAX_PASSWORD_TRIES = 10;
 export const adminLogin = async (req, res) => {
   try {
-    const { id, password } = req.body;
-    const admin = await Admin.findOne({ email: id });
+    const { id, password, isSuperAdmin } = req.body;
+    if(!id || !password){
+      return res.status(400).json({message:"Id and Password Required"})
+    }
+    let admin
+    if(isSuperAdmin){
+      admin = await Admin.findOne({ email: id });
     if (!admin) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -734,12 +860,12 @@ export const adminLogin = async (req, res) => {
       if (admin.passwordTries >= MAX_PASSWORD_TRIES) {
         return res.status(403).json({
           message:
-            "Your account has been blocked due to multiple incorrect attempts. Please contact the admin.",
+            "Your account has been blocked due to multiple incorrect attempts. Please Change password.",
         });
       }
       return res
         .status(403)
-        .json({ message: "Your account has been blocked, Contact admin" });
+        .json({ message: "Your account has been blocked, Please Change password" });
     }
 
     if (admin.passwordTries >= MAX_PASSWORD_TRIES) {
@@ -773,29 +899,54 @@ export const adminLogin = async (req, res) => {
       admin.passwordTries = 0;
       await admin.save();
     }
+    }else{
+      admin = await SubAdmin.findOne({ loginId: id });
+    if (!admin) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (admin.isBlocked) {
+      if (admin.passwordTries >= MAX_PASSWORD_TRIES) {
+        return res.status(403).json({
+          message:
+            "Your account has been blocked due to multiple incorrect attempts. Please Change password.",
+        });
+      }
+      return res
+        .status(403)
+        .json({ message: "Your account has been blocked, Please Change password" });
+    }
+
+    if (admin.passwordTries >= MAX_PASSWORD_TRIES) {
+      admin.isBlocked = true;
+      await admin.save();
+      return res.status(403).json({
+        message:
+          "Your account has been blocked due to multiple incorrect attempts. Please Change password.",
+      });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      admin.passwordTries += 1; // Increment incorrect attempts
+      await admin.save();
+      return res.status(403).json({ message: "Invalid credentials" });
+    }
+    // Reset passwordTries on successful login
+    if (admin.passwordTries > 0) {
+      admin.passwordTries = 0;
+      await admin.save();
+    }
+    }
+    
 
     // Generate Access Token (short-lived)
     const accessToken = jwt.sign(
-      { id: admin._id, email: admin.email },
+      { id: admin.adminIs, email: admin.email },
       process.env.ACCESS_SECRET_KEY,
       { expiresIn: "12h" }
     );
-
-    // Generate Refresh Token (long-lived)
-    // const refreshToken = jwt.sign(
-    //   { id: admin._id },
-    //   process.env.REFRESH_SECRET_KEY,
-    //   { expiresIn: "7d" }
-    // );
-
-    // Send refreshToken securely in HttpOnly cookie
-    // const role = 'admin'
-    // res.cookie(`${role}RefreshToken`, refreshToken, {
-    //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === 'production',
-    //   sameSite: 'strict',
-    //   expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    // });
 
     res.status(200).json({
       admin,
@@ -818,6 +969,7 @@ const securePassword = async (password) => {
     console.log(error.message);
   }
 };
+
 
 export const addUser = async (req, res) => {
   try {
@@ -1206,3 +1358,37 @@ export const updateAdminPassword = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const addClient = async (req, res) => {
+  const { value, adminId } = req.body;
+  let client = await Client.create({
+    name: value.name,
+    email: value.email,
+    address: value?.address,
+    phone: value?.phone,
+    adminIs: adminId,
+  });
+  res.status(201).json({ client, message: "Client added" });
+};
+
+export const getProAndSer = async (req, res) => {
+  const { adminId } = req.params;
+  let products = (await Product.find({ adminIs: adminId })) || [];
+  let services = (await Service.find({ adminIs: adminId })) || [];
+  res.status(200).json({ products, services });
+};
+
+export const fetchClients = async (req, res) => {
+  try {
+    const { adminId } = req.query;
+    const clients = await Client.find({ adminIs: adminId })
+      .collation({ locale: "en", strength: 1 })
+      .sort({ name: 1 });
+    res.status(200).json({ clients });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ status: "Internal Server Error" });
+  }
+};
+
+

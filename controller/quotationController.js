@@ -938,7 +938,8 @@ export const createQuotation = async (req, res) => {
 
 export const changeQtnStatus = async (req, res) => {
   try {
-    const { status, reason, qid } = req.body;
+    const { status, reason, qid, admin } = req.body;
+
     const quotation = await Quotation.findById(qid);
 
     if (!quotation) {
@@ -952,6 +953,7 @@ export const changeQtnStatus = async (req, res) => {
     if (status === "accepted") {
       quotation.approvedOn = new Date();
     }
+    quotation.statusChangedBy = {name:admin.name,email:admin.email}
 
     await quotation.save();
 
@@ -969,10 +971,6 @@ export const quotationDetails = async (req, res) => {
   try {
     const { qid } = req.params;
     const quotation = await Quotation.findById(qid)
-      .populate({
-        path: "createdBy",
-        select: "name phone email ",
-      })
       .populate({
         path: "client",
         select: "name email phone address",
