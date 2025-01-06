@@ -7,6 +7,7 @@ import Quotation from "../model/quotationModel.js";
 import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js";
 import cloudinary from "../util/cloudinary.js";
+import Company from "../model/companyModel.js"
 
 export const userDashData = async (req, res) => {
   const { user } = req.query;
@@ -250,6 +251,21 @@ export const logoutUser = (req, res) => {
 
   res.status(200).json({ message: "Logged out successfully" });
 };
+
+export const fetchCompanies = async(req,res)=>{
+  try {
+    const { adminId } = req.params
+    if(!adminId){
+      return res.status(400).json({message:"adminId missing"})
+    }
+    const companies = await Company.find({adminIs:adminId});
+    res.status(200).json({companies})
+
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
 
 export const addClient = async (req, res) => {
   const { value, adminId } = req.body;

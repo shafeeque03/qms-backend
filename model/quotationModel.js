@@ -73,24 +73,22 @@ const QuotationSchema = new mongoose.Schema({
         ref: 'client',
         required: true
     },
-    from: {
+    company: {
         name: {
-            type: String,
-            required: true
+          type: String,
+          default: ""
         },
         email: {
-            type: String,
-            // required: true
+          type: String,
+          default: ""
         },
         phone: {
-            type: String,
-            // required: true
+          type: String,
         },
         address: {
-            type: String,
-            // required: true
-        }
-    },
+          type: String,
+        },
+      },
     adminIs: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'admin',

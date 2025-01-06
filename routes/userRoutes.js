@@ -1,6 +1,6 @@
 import express from 'express';
-import { loginUser,logoutUser,addClient,getClients,filteredData, getProAndSer, userDashData } from '../controller/userController.js';
-import { createQuotation,quotationDetails,changeQtnStatus, updateQuotationDetails } from '../controller/quotationController.js';
+import { loginUser,logoutUser,addClient,getClients,filteredData, getProAndSer, userDashData, fetchCompanies } from '../controller/userController.js';
+import { createQuotation,quotationDetails,changeQtnStatus, updateQuotationDetails, sendProposalEmail } from '../controller/quotationController.js';
 import { uploadFile } from '../middleware/uploadMiddleware.js';
 const userRoute = express();
 
@@ -12,6 +12,10 @@ userRoute.get('/getClients', getClients);
 
 userRoute.post('/createQuotation',uploadFile,createQuotation);
 userRoute.post('/editQuotation',uploadFile,updateQuotationDetails);
+userRoute.post('/sendMail',sendProposalEmail);
+
+
+userRoute.get("/fetchCompanies/:adminId",fetchCompanies)
 
 userRoute.get('/quotationDetails/:qid',quotationDetails);
 userRoute.get('/getProAndSer/:adminId',getProAndSer);

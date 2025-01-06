@@ -11,12 +11,108 @@ import Admin from "../model/adminModel.js";
 import otpModel from "../model/otpModel.js";
 import cloudinary from "../util/cloudinary.js";
 import nodemailer from "nodemailer";
+import Company from "../model/companyModel.js";
 
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 
 import PDFDocument from "pdfkit";
 import pdf from "html-pdf";
+
+export const updateCompany = async (req, res) => {
+  try {
+    const { compId, name, email, address, phone, logo } = req.body;
+
+    // Check for missing fields
+    if (!compId || !name || !email || !address || !phone) {
+      return res
+        .status(400)
+        .json({ message: "Complete the form or Id is missing" });
+    }
+
+    let logourl;
+
+    // Check if a new logo is uploaded
+    if (logo) {
+      const uploadResult = await cloudinary.uploader.upload(logo, {
+        folder: "company_logos",
+      });
+      logourl = uploadResult.secure_url;
+    }
+
+    // Update the company
+    await Company.findByIdAndUpdate(
+      compId, // Use the correct field for the query
+      {
+        name,
+        email,
+        phone,
+        address,
+        ...(logourl && { logo: logourl }), // Update logo only if a new one is provided
+      },
+      { new: true } // Ensure MongoDB applies changes
+    );
+
+    // Fetch the updated company to include all fields
+    const updatedCompany = await Company.findById(compId);
+    // Check if the company was found
+    if (!updatedCompany) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    res.status(200).json({ message: "Company Updated", updatedCompany });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+export const addCompany = async (req, res) => {
+  try {
+    const { name, email, address, phone, logo, adminId } = req.body;
+    if (!name || !email || !address || !phone || !logo || !adminId) {
+      return res
+        .status(400)
+        .json({ message: "Complete the form or adminId is missing" });
+    }
+
+    const uploadResult = await cloudinary.uploader.upload(logo, {
+      folder: "company_logos",
+    });
+
+    const logourl = uploadResult.secure_url;
+
+    const company = new Company({
+      name,
+      email,
+      address,
+      phone,
+      logo: logourl,
+      adminIs: adminId,
+    });
+    const newCom = await company.save();
+    res.status(201).json({ message: "Company created", newCom });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const fetchCompaies = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    if (!adminId) {
+      return res.status(400).json({ message: "adminId missing" });
+    }
+    const companies = await Company.find({ adminIs: adminId });
+    res.status(200).json({ companies });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 const sendVerifymailOtp = async (name, email, userId) => {
   try {
@@ -66,6 +162,7 @@ const sendVerifymailOtp = async (name, email, userId) => {
     });
   } catch (error) {
     console.log(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -119,17 +216,12 @@ export const otpVerifying = async (req, res) => {
   try {
     const { adminId, otp } = req.body;
     const otpData = await otpModel.findOne({ userId: adminId });
-    console.log(otpData,"otpDataaaa")
-
-
-    console.log(adminId,otp,"jijiij")
 
     const correctOtp = otpData.otp;
     if (otpData && otpData.expiresAt < Date.now()) {
       return res.status(401).json({ message: "Email OTP has expired" });
     }
     if (correctOtp == otp) {
-      console.log("its right otp")
       await otpModel.deleteMany({ userId: adminId });
       await Admin.updateOne({ _id: adminId }, { $set: { isVerified: true } });
       res.status(200).json({
@@ -190,8 +282,10 @@ export const quotationDetails = async (req, res) => {
       .populate({
         path: "adminIs",
         select: "name email phone address",
+      })
+      .populate({
+        path: "company",
       });
-
     res.status(200).json({ quotation });
   } catch (error) {
     console.error(error.message);
@@ -638,12 +732,10 @@ export const adminLogin = async (req, res) => {
 
     if (admin.isBlocked) {
       if (admin.passwordTries >= MAX_PASSWORD_TRIES) {
-        return res
-          .status(403)
-          .json({
-            message:
-              "Your account has been blocked due to multiple incorrect attempts. Please contact the admin.",
-          });
+        return res.status(403).json({
+          message:
+            "Your account has been blocked due to multiple incorrect attempts. Please contact the admin.",
+        });
       }
       return res
         .status(403)
@@ -972,13 +1064,13 @@ export const filteredQuotation = async (req, res) => {
         $lte: new Date(endDate),
       };
     }
-    if(startDate && !endDate){
+    if (startDate && !endDate) {
       filter.createdAt = {
         $gte: new Date(startDate),
       };
     }
 
-    if(endDate && !startDate){
+    if (endDate && !startDate) {
       filter.createdAt = {
         $lte: new Date(endDate),
       };

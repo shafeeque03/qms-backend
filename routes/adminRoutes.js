@@ -24,7 +24,10 @@ import {
   otpVerifying,
   resendOtp,
   forgetPassword,
-  changeAdminPass
+  changeAdminPass,
+  addCompany,
+  fetchCompaies,
+  updateCompany
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -44,10 +47,14 @@ adminRoute.patch("/updateUser", updateUserData);
 adminRoute.patch("/changeUserPassword", updateUserPassword);
 
 //productAndServiceControlls
-
 adminRoute.get("/getProducts",getProducts)
 adminRoute.get("/getServices",getServices)
 adminRoute.get('/downloadSerOrPro',downloadPDF)
+
+//companyControlls
+adminRoute.post("/addCompany",addCompany)
+adminRoute.post("/updateCompany",updateCompany)
+adminRoute.get("/getCompanies/:adminId",fetchCompaies)
 
 //clientControlls
 adminRoute.get("/getClients", getClients);
