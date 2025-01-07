@@ -42,7 +42,7 @@ import {
   getServices,
 } from "../controller/proAndSerController.js";
 import { uploadFile } from "../middleware/uploadMiddleware.js";
-import { changeQtnStatus, createQuotation } from "../controller/quotationController.js";
+import { changeQtnStatus, createQuotation, updateQuotationDetails } from "../controller/quotationController.js";
 
 
 
@@ -60,6 +60,7 @@ adminRoute.post('/createQuotation',uploadFile,createQuotation);
 adminRoute.get('/fetchClients', fetchClients);
 
 adminRoute.patch('/qtnStatusChange',changeQtnStatus);
+adminRoute.post('/editQuotation',uploadFile,updateQuotationDetails);
 
 
 //SubadminControlls

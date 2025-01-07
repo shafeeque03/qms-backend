@@ -940,7 +940,17 @@ export const changeQtnStatus = async (req, res) => {
   try {
     const { status, reason, qid, admin } = req.body;
 
-    const quotation = await Quotation.findById(qid);
+    const quotation = await Quotation.findById(qid).populate({
+      path: "client",
+      select: "name email phone address",
+    })
+    .populate({
+      path: "adminIs",
+      select: "name email phone address",
+    })
+    .populate({
+      path: "company",
+    });
 
     if (!quotation) {
       return res.status(404).json({ message: "Quotation not found" });
