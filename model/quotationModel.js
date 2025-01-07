@@ -86,6 +86,10 @@ const QuotationSchema = new mongoose.Schema({
             type:String
         },
     },
+    canEdit:{
+        type: Boolean,
+        default: true
+    },
     client: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'client',

@@ -14,6 +14,7 @@ import pdf from "html-pdf";
 import puppeteer from "puppeteer";
 import fetch from "node-fetch";
 
+
 const convertHtmlToPdf = async (htmlContent) => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -201,6 +202,9 @@ export const updateQuotationDetails = async (req, res) => {
       quotation.tax = tax;
       quotation.totalAmount = totalAmount;
       quotation.subTotal = subTotal;
+    }
+    if(quotation.status=='accepted'){
+      quotation.canEdit = false
     }
 
     await quotation.save();
@@ -964,6 +968,7 @@ export const changeQtnStatus = async (req, res) => {
       quotation.approvedOn = new Date();
     }
     quotation.statusChangedBy = {name:admin.name,email:admin.email}
+    quotation.canEdit = false
 
     await quotation.save();
 
@@ -976,6 +981,8 @@ export const changeQtnStatus = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 export const quotationDetails = async (req, res) => {
   try {

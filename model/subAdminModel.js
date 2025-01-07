@@ -34,6 +34,11 @@ const subAdminSchema = new mongoose.Schema(
       ref: "admin",
       required: true,
     },
+    accessRoutes: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AccessRoute",
+      required: true,
+    },
     isSuper: {
       type: Boolean,
       default: false,

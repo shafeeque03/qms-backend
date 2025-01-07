@@ -92,7 +92,7 @@ export const filteredData = async (req, res) => {
 
     // Apply date filtering for `createdAt`
     if (startDate && endDate) {
-      filter.expireDate = {
+      filter.createdAt = {
         $gte: new Date(startDate),
         $lte: new Date(endDate),
       };

@@ -34,7 +34,10 @@ import {
   chnageSubAdminPass,
   addClient,
   getProAndSer,
-  fetchClients
+  fetchClients,
+  changeEditAccess,
+  updateRouteAccess,
+  fetchRouteAccess
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -54,6 +57,8 @@ adminRoute.get("/userDetails/:userId", getUserDetails);
 adminRoute.patch("/updateUser", updateUserData);
 adminRoute.patch("/changeUserPassword", updateUserPassword);
 
+adminRoute.patch("/changeEditAccess", changeEditAccess);
+
 adminRoute.post('/addClient', addClient);
 adminRoute.get('/getProAndSer/:adminId',getProAndSer);
 adminRoute.post('/createQuotation',uploadFile,createQuotation);
@@ -65,9 +70,12 @@ adminRoute.post('/editQuotation',uploadFile,updateQuotationDetails);
 
 //SubadminControlls
 adminRoute.get("/getAdmins/:adminId", fetchAllAdmins);
+adminRoute.get("/getRouteAccess/:adminId", fetchRouteAccess);
 adminRoute.post("/addAdmin", addAdmin);
+adminRoute.post("/updateRouteAccess", updateRouteAccess);
 adminRoute.patch("/updateAdmin", updateAdminData);
 adminRoute.patch("/changeSubAdminPassword", chnageSubAdminPass);
+
 
 
 
