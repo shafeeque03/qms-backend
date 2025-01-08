@@ -36,8 +36,6 @@ import {
   getProAndSer,
   fetchClients,
   changeEditAccess,
-  updateRouteAccess,
-  fetchRouteAccess
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -70,9 +68,7 @@ adminRoute.post('/editQuotation',uploadFile,updateQuotationDetails);
 
 //SubadminControlls
 adminRoute.get("/getAdmins/:adminId", fetchAllAdmins);
-adminRoute.get("/getRouteAccess/:adminId", fetchRouteAccess);
 adminRoute.post("/addAdmin", addAdmin);
-adminRoute.post("/updateRouteAccess", updateRouteAccess);
 adminRoute.patch("/updateAdmin", updateAdminData);
 adminRoute.patch("/changeSubAdminPassword", chnageSubAdminPass);
 

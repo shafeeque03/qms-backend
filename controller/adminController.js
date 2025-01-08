@@ -21,38 +21,6 @@ import { stringify } from "csv-stringify/sync";
 import PDFDocument from "pdfkit";
 import pdf from "html-pdf";
 
-import AccessRoute from "../model/accessRoutesModel.js";
-
-export const updateRouteAccess = async(req,res)=>{
-  try {
-    const{selectedRoutes, adminId} = req.body;
-    if(!adminId){
-      return res.status(400).json({message:"Admin Id is required"})
-    }
-    const newRouteAccess = await AccessRoute.findOneAndUpdate({adminIs:adminId},{routes:selectedRoutes},{new:true,upsert:true});
-    const routes = newRouteAccess?.routes
-    res.status(200).json({message:"Route Access Updates",routes})
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ message: "Server error" });
-  }
-}
-
-export const fetchRouteAccess = async(req,res)=>{
-  try {
-    const{adminId} = req.params;
-    if(!adminId){
-      return res.status(400).json({message:"adminId required"})
-    }
-    const accessRoutes = await AccessRoute.findOne({adminIs:adminId});
-    const routes = accessRoutes.routes
-    res.status(200).json({routes})
-
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ message: "Server error" });
-  }
-}
 
 export const addAdmin = async (req, res) => {
   try {
@@ -77,8 +45,6 @@ export const addAdmin = async (req, res) => {
     // Encrypt password
     const encryptedPassword = await securePassword(password);
 
-    const routes = await AccessRoute.findOne({adminIs:admin._id})
-
     // Create and save new user
     const user = await SubAdmin.create({
       name: userName,
@@ -87,7 +53,6 @@ export const addAdmin = async (req, res) => {
       loginId,
       password: encryptedPassword,
       adminIs: admin._id,
-      accessRoutes:routes._id
     });
 
     res.status(201).json({ message: "Admin added successfully", user });
@@ -148,7 +113,9 @@ export const updateAdminData = async (req, res) => {
         email: values.email,
         phone: values.phone,
         loginId: values.loginId,
-        is_blocked: values.isBlocked,
+        isBlocked: values.isBlocked,
+        accessRoutes:values.accessRoutes
+        
       },
       { new: true } // Return the updated document
     );
