@@ -36,7 +36,7 @@ const subAdminSchema = new mongoose.Schema(
     },
     accessRoutes: {
       type: [String],
-      default: ['/admin/prodcts','/admin/services'],
+      default: ['/admin/products','/admin/services'],
     },
     isSuper: {
       type: Boolean,

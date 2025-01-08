@@ -1025,6 +1025,7 @@ export const downloadQuotationReport = async (req, res) => {
   }
 };
 
+
 export const logoUpdate = async (req, res) => {
   try {
     const { adminId, file } = req.body;
@@ -1157,6 +1158,12 @@ export const adminLogin = async (req, res) => {
       return res
         .status(403)
         .json({ message: "Your account has been blocked, Please Change password" });
+    }
+
+    if (admin.isApproved==false) {
+      return res
+        .status(403)
+        .json({ message: "Your account is not verified" });
     }
 
     if (admin.passwordTries >= MAX_PASSWORD_TRIES) {

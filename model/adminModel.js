@@ -48,12 +48,16 @@ const adminSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    adminIs: {
+    adminIs: { 
       type: String,
     },
     isSuper:{
       type: Boolean,
       default: true
+    },
+    isApproved:{
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

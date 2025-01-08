@@ -167,6 +167,20 @@ export const hosterLogin = async (req, res) => {
   }
 };
 
+export const VerifyAdmin = async(req,res)=>{
+  try {
+    const{adminId} = req.body;
+  if(!adminId){
+    return res.status(400).json({message:"Admin ID Required"})
+  }
+  await Admin.findByIdAndUpdate(adminId,{isApproved:true});
+  res.status(200).json({message:"Account is Approved"})
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ status: "Internal Server Error" });
+  }
+}
+
 export const verifyHosterOtp = async (req, res) => {
   try {
     const { otp } = req.body;
@@ -178,20 +192,6 @@ export const verifyHosterOtp = async (req, res) => {
         { expiresIn: "12h" }
       );
 
-      const refreshToken = jwt.sign(
-        { email: process.env.HOSTER_ID },
-        process.env.REFRESH_SECRET_KEY,
-        { expiresIn: "7d" }
-      );
-
-      // Send refreshToken securely in HttpOnly cookie
-      const role = "hoster";
-      res.cookie(`${role}RefreshToken`, refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      });
       await HotpModel.deleteMany({});
       const hoster = { name: "hoster" };
       return res
