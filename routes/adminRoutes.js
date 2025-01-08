@@ -43,7 +43,7 @@ import {
   getServices,
 } from "../controller/proAndSerController.js";
 import { uploadFile } from "../middleware/uploadMiddleware.js";
-import { changeQtnStatus, createQuotation, updateQuotationDetails } from "../controller/quotationController.js";
+import { changeQtnStatus, createQuotation, sendProposalEmail, updateQuotationDetails } from "../controller/quotationController.js";
 
 
 
@@ -95,6 +95,7 @@ adminRoute.get("/getAllUsers/:adminId", getAllUsers);
 //quotationControlls   
 adminRoute.get("/filteredQuotation", filteredQuotation);    
 adminRoute.get("/downloadQuotation",filteredQuotationDownload);
+adminRoute.post('/sendMail',sendProposalEmail);
 
 //dashboardControlls
 adminRoute.get('/dashboardData',dashboardData)

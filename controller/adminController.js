@@ -1,6 +1,5 @@
 import User from "../model/userModel.js";
 import Client from "../model/clientModel.js";
-import Quotation from "../model/quotationModel.js";
 import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js";
 import jwt from "jsonwebtoken";
@@ -11,7 +10,6 @@ import Admin from "../model/adminModel.js";
 import otpModel from "../model/otpModel.js";
 import cloudinary from "../util/cloudinary.js";
 import nodemailer from "nodemailer";
-import Company from "../model/companyModel.js";
 import SubAdmin from "../model/subAdminModel.js"
 
 
@@ -20,6 +18,272 @@ import { stringify } from "csv-stringify/sync";
 
 import PDFDocument from "pdfkit";
 import pdf from "html-pdf";
+import Quotation from "../model/quotationModel.js";
+import Company from "../model/companyModel.js";
+
+export const reportPageData = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+    // Validate adminId
+    if (!mongoose.Types.ObjectId.isValid(adminId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Admin ID",
+      });
+    }
+
+    // Get all companies for this admin
+    const companies = await Company.find({ adminIs: adminId });
+    
+    // Get today's start and end dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // New: Company-wise total sales
+    const companySales = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+        },
+      },
+      {
+        $group: {
+          _id: "$company.id",
+          totalSales: { $sum: "$subTotal" },
+          quotationCount: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "companies",
+          localField: "_id",
+          foreignField: "_id",
+          as: "companyDetails",
+        },
+      },
+      { $unwind: "$companyDetails" },
+    ]);
+
+    // New: Company-wise today's sales
+    const todayCompanySales = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+          approvedOn: {
+            $gte: today,
+            $lt: tomorrow,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$company.id",
+          todaySales: { $sum: "$subTotal" },
+          todayQuotationCount: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "companies",
+          localField: "_id",
+          foreignField: "_id",
+          as: "companyDetails",
+        },
+      },
+      { $unwind: "$companyDetails" },
+    ]);
+
+    // 1. Total Revenue Calculation
+    const totalRevenueResult = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$subTotal" },
+          totalQuotations: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const totalQuotationsCount = await Quotation.find({
+      adminIs: adminId,
+    }).countDocuments();
+
+    // 2. Most Purchased Products
+    const mostPurchasedProducts = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+        },
+      },
+      { $unwind: "$products" },
+      {
+        $group: {
+          _id: "$products.name",
+          totalQuantity: { $sum: "$products.quantity" },
+          totalRevenue: {
+            $sum: { $multiply: ["$products.quantity", "$products.price"] },
+          },
+        },
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 5 },
+    ]);
+
+    // 3. Most Provided Services
+    const mostProvidedServices = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+        },
+      },
+      { $unwind: "$services" },
+      {
+        $group: {
+          _id: "$services.name",
+          totalUsage: { $sum: 1 },
+          totalRevenue: { $sum: "$services.price" },
+        },
+      },
+      { $sort: { totalUsage: -1 } },
+      { $limit: 5 },
+    ]);
+
+    // 4. Quotation Status Breakdown
+    const quotationStatusBreakdown = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+        },
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // 5. Monthly Revenue Trend
+    const monthlyRevenueTrend = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$approvedOn" },
+            month: { $month: "$approvedOn" },
+          },
+          totalRevenue: { $sum: "$subTotal" },
+        },
+      },
+      {
+        $sort: {
+          "_id.year": 1,
+          "_id.month": 1,
+        },
+      },
+    ]);
+
+    // 6. Top Clients
+    const topClients = await Quotation.aggregate([
+      {
+        $match: {
+          adminIs: new mongoose.Types.ObjectId(adminId),
+          status: "accepted",
+        },
+      },
+      {
+        $group: {
+          _id: "$client",
+          totalRevenue: { $sum: "$subTotal" },
+          quotationCount: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "clients",
+          localField: "_id",
+          foreignField: "_id",
+          as: "clientDetails",
+        },
+      },
+      { $unwind: "$clientDetails" },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 5 },
+    ]);
+
+    // Process company sales data
+    const companyWiseSales = companies.map(company => {
+      const salesData = companySales.find(
+        sale => sale._id.toString() === company._id.toString()
+      ) || { totalSales: 0, quotationCount: 0 };
+      
+      const todaySalesData = todayCompanySales.find(
+        sale => sale._id.toString() === company._id.toString()
+      ) || { todaySales: 0, todayQuotationCount: 0 };
+
+      return {
+        companyId: company._id,
+        name: company.name,
+        address: company.address,
+        totalSales: salesData.totalSales,
+        totalQuotations: salesData.quotationCount,
+        todaySales: todaySalesData.todaySales,
+        todayQuotations: todaySalesData.todayQuotationCount,
+      };
+    });
+
+    // Prepare Response
+    res.status(200).json({
+      success: true,
+      data: {
+        totalRevenue: totalRevenueResult[0]?.totalRevenue || 0,
+        totalQuotations: totalQuotationsCount || 0,
+        mostPurchasedProducts,
+        mostProvidedServices,
+        quotationStatusBreakdown: quotationStatusBreakdown.reduce(
+          (acc, status) => {
+            acc[status._id] = status.count;
+            return acc;
+          },
+          {}
+        ),
+        monthlyRevenueTrend,
+        topClients: topClients.map((client) => ({
+          name: client.clientDetails.name,
+          totalRevenue: client.totalRevenue,
+          quotationCount: client.quotationCount,
+        })),
+        // New: Add company-wise sales data
+        companyWiseSales,
+      },
+    });
+  } catch (error) {
+    console.error("Report Page Data Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
+  }
+};
 
 
 export const addAdmin = async (req, res) => {
@@ -115,7 +379,7 @@ export const updateAdminData = async (req, res) => {
         loginId: values.loginId,
         isBlocked: values.isBlocked,
         accessRoutes:values.accessRoutes
-        
+
       },
       { new: true } // Return the updated document
     );
@@ -450,7 +714,7 @@ export const downloadQuotationReport = async (req, res) => {
       {
         $match: {
           adminIs: new mongoose.Types.ObjectId(adminId),
-          approvedOn: {
+          createdAt: {
             $gte: new Date(startDate),
             $lte: new Date(endDate),
           },
@@ -466,75 +730,259 @@ export const downloadQuotationReport = async (req, res) => {
       },
       { $unwind: "$clientDetails" },
     ]);
-
-    // Calculate total revenue
-    const totalRevenue = quotations.reduce(
-      (sum, q) => sum + (q.subTotal || 0),
-      0
-    );
+    
+    // Calculate total revenue for accepted quotations
+    const totalRevenue = quotations
+      .filter((q) => q.status === "accepted") // Filter only accepted quotations
+      .reduce((sum, q) => sum + (q.subTotal || 0), 0);
 
     // Generate HTML for PDF
     const htmlContent = `
       <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #2c3e50; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { 
-              border: 1px solid #ddd; 
-              padding: 8px; 
-              text-align: left; 
-            }
-            th { 
-              background-color: #f2f2f2; 
-              font-weight: bold;
-            }
-            .summary { 
-              margin-top: 20px; 
-              font-weight: bold; 
-              font-size: 18px; 
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Quotation Report</h1>
-          <p><strong>Date Range:</strong> ${startDate} to ${endDate}</p>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Quotation No</th>
-                <th>Client Name</th>
-                <th>Total Amount</th>
-                <th>Created Date</th>
-                <th>Approved Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${quotations
-                .map(
-                  (q) => `
-                <tr>
-                  <td>${q.quotationId}</td>
-                  <td>${q.clientDetails.name}</td>
-                  <td>$${q.subTotal?.toFixed(2)}</td>
-                  <td>${q.createdAt.toISOString().split("T")[0]}</td>
-                  <td>${q.approvedOn.toISOString().split("T")[0]}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Modern CSS Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-          <div class="summary">
-            <p>Total Quotations: ${quotations.length}</p>
-            <p>Total Revenue: $${totalRevenue.toFixed(2)}</p>
-          </div>
-        </body>
-      </html>
+    /* Base Styles */
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      padding: 40px;
+      background-color: #fff;
+    }
+
+    /* Header Section */
+    .header {
+      margin-bottom: 40px;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 20px;
+    }
+
+    .header h1 {
+      color: #2563eb;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .date-range {
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    /* Table Styles */
+    .table-container {
+      margin: 30px 0;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    th {
+      background-color: #f8fafc;
+      color: #334155;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 15px;
+      border-bottom: 2px solid #e2e8f0;
+      font-size: 14px;
+    }
+
+    td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 14px;
+      color: #475569;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    /* Status Badges */
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+
+    .status-accepted {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+
+    .status-pending {
+      background-color: #fef9c3;
+      color: #854d0e;
+    }
+
+    .status-rejected {
+      background-color: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Summary Section */
+    .summary {
+      margin-top: 40px;
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 20px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .summary-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 15px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .summary-item {
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .summary-label {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 5px;
+    }
+
+    .summary-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2563eb;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 20px;
+    }
+
+    /* Responsive Design */
+    @media print {
+      body {
+        padding: 20px;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      .summary {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Quotation Report</h1>
+    <div class="date-range">
+      <strong>Report Period:</strong> ${startDate} to ${endDate}
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Quotation No</th>
+          <th>Client Name</th>
+          <th>Total Amount</th>
+          <th>Created Date</th>
+          <th>Status</th>
+          <th>Approved Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${quotations.map(q => `
+          <tr>
+            <td>${q.quotationId}</td>
+            <td>${q.clientDetails.name}</td>
+            <td>$${q.subTotal?.toFixed(2)}</td>
+            <td>${q.createdAt.toISOString().split('T')[0]}</td>
+            <td>
+              <span class="status-badge status-${q.status.toLowerCase()}">
+                ${q.status}
+              </span>
+            </td>
+            <td>${q.approvedOn ? q.approvedOn.toISOString().split('T')[0] : 'NA'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="summary">
+    <div class="summary-title">Report Summary</div>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-label">Total Quotations</div>
+        <div class="summary-value">${quotations.length}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Total Revenue</div>
+        <div class="summary-value">$${totalRevenue.toFixed(2)}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Accepted Quotations</div>
+        <div class="summary-value">${quotations.filter(q => q.status === 'accepted').length}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Rejected Quotations</div>
+        <div class="summary-value">${quotations.filter(q => q.status === 'rejected').length}</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Pending Quotations</div>
+        <div class="summary-value">${quotations.filter(q => q.status === 'pending').length}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Generated on ${new Date().toLocaleDateString()} - This is a system-generated report
+  </div>
+</body>
+</html>
     `;
 
     // PDF generation options
@@ -626,181 +1074,6 @@ export const logoUpdate = async (req, res) => {
   }
 };
 
-export const reportPageData = async (req, res) => {
-  try {
-    const { adminId } = req.params;
-
-    // Validate adminId
-    if (!mongoose.Types.ObjectId.isValid(adminId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid Admin ID",
-      });
-    }
-
-    // 1. Total Revenue Calculation
-    const totalRevenueResult = await Quotation.aggregate([
-      {
-        $match: {
-          adminIs: new mongoose.Types.ObjectId(adminId),
-          status: "accepted",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: "$subTotal" },
-          totalQuotations: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const totalQuotationsCount = await Quotation.find({
-      adminIs: adminId,
-    }).countDocuments();
-
-    // 2. Most Purchased Products
-    const mostPurchasedProducts = await Quotation.aggregate([
-      {
-        $match: {
-          adminIs: new mongoose.Types.ObjectId(adminId),
-          status: "accepted",
-        },
-      },
-      { $unwind: "$products" },
-      {
-        $group: {
-          _id: "$products.name",
-          totalQuantity: { $sum: "$products.quantity" },
-          totalRevenue: {
-            $sum: { $multiply: ["$products.quantity", "$products.price"] },
-          },
-        },
-      },
-      { $sort: { totalQuantity: -1 } },
-      { $limit: 5 },
-    ]);
-
-    // 3. Most Provided Services
-    const mostProvidedServices = await Quotation.aggregate([
-      {
-        $match: {
-          adminIs: new mongoose.Types.ObjectId(adminId),
-          status: "accepted",
-        },
-      },
-      { $unwind: "$services" },
-      {
-        $group: {
-          _id: "$services.name",
-          totalUsage: { $sum: 1 },
-          totalRevenue: { $sum: "$services.price" },
-        },
-      },
-      { $sort: { totalUsage: -1 } },
-      { $limit: 5 },
-    ]);
-
-    // 4. Quotation Status Breakdown
-    const quotationStatusBreakdown = await Quotation.aggregate([
-      {
-        $match: {
-          adminIs: new mongoose.Types.ObjectId(adminId),
-        },
-      },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    // 5. Monthly Revenue Trend
-    const monthlyRevenueTrend = await Quotation.aggregate([
-      {
-        $match: {
-          adminIs: new mongoose.Types.ObjectId(adminId),
-          status: "accepted",
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$approvedOn" },
-            month: { $month: "$approvedOn" },
-          },
-          totalRevenue: { $sum: "$subTotal" },
-        },
-      },
-      {
-        $sort: {
-          "_id.year": 1,
-          "_id.month": 1,
-        },
-      },
-    ]);
-
-    // 6. Top Clients
-    const topClients = await Quotation.aggregate([
-      {
-        $match: {
-          adminIs: new mongoose.Types.ObjectId(adminId),
-          status: "accepted",
-        },
-      },
-      {
-        $group: {
-          _id: "$client",
-          totalRevenue: { $sum: "$subTotal" },
-          quotationCount: { $sum: 1 },
-        },
-      },
-      {
-        $lookup: {
-          from: "clients",
-          localField: "_id",
-          foreignField: "_id",
-          as: "clientDetails",
-        },
-      },
-      { $unwind: "$clientDetails" },
-      { $sort: { totalRevenue: -1 } },
-      { $limit: 5 },
-    ]);
-
-    // Prepare Response
-    res.status(200).json({
-      success: true,
-      data: {
-        totalRevenue: totalRevenueResult[0]?.totalRevenue || 0,
-        totalQuotations: totalQuotationsCount || 0,
-        mostPurchasedProducts,
-        mostProvidedServices,
-        quotationStatusBreakdown: quotationStatusBreakdown.reduce(
-          (acc, status) => {
-            acc[status._id] = status.count;
-            return acc;
-          },
-          {}
-        ),
-        monthlyRevenueTrend,
-        topClients: topClients.map((client) => ({
-          name: client.clientDetails.name,
-          totalRevenue: client.totalRevenue,
-          quotationCount: client.quotationCount,
-        })),
-      },
-    });
-  } catch (error) {
-    console.error("Report Page Data Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-      error: error.message,
-    });
-  }
-};
 
 export const dashboardData = async (req, res) => {
   try {

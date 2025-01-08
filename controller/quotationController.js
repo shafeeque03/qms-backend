@@ -194,6 +194,7 @@ export const updateQuotationDetails = async (req, res) => {
       email: selectedCompany.email,
       phone: selectedCompany.phone,
       address: selectedCompany.address,
+      id:selectedCompany._id
     };
     quotation.company = CompData;
 
@@ -900,6 +901,7 @@ export const createQuotation = async (req, res) => {
       email: selectedCompany.email,
       phone: selectedCompany.phone,
       address: selectedCompany.address,
+      id: selectedCompany._id
     };
 
     // Create quotation

@@ -110,6 +110,11 @@ const QuotationSchema = new mongoose.Schema({
         address: {
           type: String,
         },
+        id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'company',
+            required: true
+        },
       },
     adminIs: {
         type: mongoose.Schema.Types.ObjectId,
