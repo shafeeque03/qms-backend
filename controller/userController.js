@@ -7,7 +7,16 @@ import Quotation from "../model/quotationModel.js";
 import Product from "../model/productModel.js";
 import Service from "../model/serviceModel.js";
 import cloudinary from "../util/cloudinary.js";
-import Company from "../model/companyModel.js"
+import Company from "../model/companyModel.js";
+import RequestModel from "../model/requestModel.js";
+
+export const fetchRequests = async(req,res)=>{
+  try {
+    
+  } catch (error) {
+    
+  }
+}
 
 export const userDashData = async (req, res) => {
   const { user } = req.query;
