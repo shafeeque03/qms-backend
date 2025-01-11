@@ -10,13 +10,76 @@ import cloudinary from "../util/cloudinary.js";
 import Company from "../model/companyModel.js";
 import RequestModel from "../model/requestModel.js";
 
-export const fetchRequests = async(req,res)=>{
+export const createRequest = async(req,res)=>{
   try {
-    
+    const{user,note} = req.body;
+    if(!user || !note){
+      return res.status(400).json({message:"user and note required"})
+    }
+    let requestId = await RequestModel.find({adminIs:user.adminIs}).countDocuments()+1
+    const newRequest = await RequestModel.create({
+      createdBy:{
+        name:user.name,
+        email:user.email,
+        id:user._id,
+        isAdmin:false,
+      },
+      adminIs:user.adminIs,
+      note,
+      requestId
+    });
+    await newRequest.save();
+    res.status(201).json({newRequest,message:"Request Created"})
   } catch (error) {
-    
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
   }
 }
+
+export const fetchRequests = async(req, res) => {
+  try {
+    const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId Required" });
+    }
+
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
+
+    // Build filter object
+    const filter = { 'createdBy.id': userId };
+    if (search) {
+      // Assuming requestId is a number in your schema
+      filter.requestId = parseInt(search);
+    }
+
+    // Get total count for pagination
+    const totalCount = await RequestModel.countDocuments(filter);
+
+    // Fetch paginated requests
+    const requests = await RequestModel.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      requests,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount
+    });
+
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 
 export const userDashData = async (req, res) => {
   const { user } = req.query;

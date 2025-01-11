@@ -20,6 +20,90 @@ import PDFDocument from "pdfkit";
 import pdf from "html-pdf";
 import Quotation from "../model/quotationModel.js";
 import Company from "../model/companyModel.js";
+import RequestModel from "../model/requestModel.js";
+
+export const changeRequestStatus = async(req,res)=>{
+  try {
+    const {reqId,status} = req.body;
+    if(!reqId||!status){
+      return res.status(400).json({message:"Request Id or Status is missing"})
+    }
+    let updatedRequest = await RequestModel.findByIdAndUpdate(reqId,{approveStatus:status},{new:true});
+    res.status(200).json({message:"Status Updated"})
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+}
+
+export const fetchAllRequests = async(req, res) => {
+  try {
+    const { adminId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+
+    if (!adminId) {
+      return res.status(400).json({ message: "adminId Required" });
+    }
+
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
+
+    // Build filter object
+    const filter = { adminIs: adminId };
+    if (search) {
+      // Assuming requestId is a number in your schema
+      filter.requestId = parseInt(search);
+    }
+
+    // Get total count for pagination
+    const totalCount = await RequestModel.countDocuments(filter);
+
+    // Fetch paginated requests
+    const requests = await RequestModel.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      requests,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount
+    });
+
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const createRequestAdmin = async(req,res)=>{
+  try {
+    const{admin,note} = req.body;
+    if(!admin || !note){
+      return res.status(400).json({message:"admin and note required"})
+    }
+    let requestId = await RequestModel.find({adminIs:admin.adminIs}).countDocuments()+1
+    const newRequest = await RequestModel.create({
+      createdBy:{
+        name:admin.name,
+        email:admin.email,
+        id:admin._id,
+        isAdmin:true,
+      },
+      adminIs:admin.adminIs,
+      note,
+      requestId
+    });
+    await newRequest.save();
+    res.status(201).json({newRequest,message:"Request Created"})
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+}
 
 export const reportPageData = async (req, res) => {
   try {

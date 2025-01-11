@@ -36,6 +36,9 @@ import {
   getProAndSer,
   fetchClients,
   changeEditAccess,
+  fetchAllRequests,
+  createRequestAdmin,
+  changeRequestStatus,
 } from "../controller/adminController.js";
 import {
   downloadPDF,
@@ -73,7 +76,9 @@ adminRoute.patch("/updateAdmin", updateAdminData);
 adminRoute.patch("/changeSubAdminPassword", chnageSubAdminPass);
 
 
-
+adminRoute.get('/fetchAllRequests/:adminId',fetchAllRequests);
+adminRoute.post('/createRequestAdmin',createRequestAdmin)
+adminRoute.post('/changeRequestStatus',changeRequestStatus)
 
 
 

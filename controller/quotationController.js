@@ -14,7 +14,6 @@ import pdf from "html-pdf";
 import puppeteer from "puppeteer";
 import fetch from "node-fetch";
 
-
 const convertHtmlToPdf = async (htmlContent) => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -758,6 +757,7 @@ export const createQuotation = async (req, res) => {
       subTotal,
       showPrice,
       selectedCompany,
+      reqId,
       adminId,
     } = req.body;
 
@@ -913,6 +913,7 @@ export const createQuotation = async (req, res) => {
       createdBy,
       quotationId: qtnId,
       adminIs: adminId,
+      requestId:reqId,
       fileUrl: allFiles,
       company: CompData,
       proposal: pdfPreviewUrl,

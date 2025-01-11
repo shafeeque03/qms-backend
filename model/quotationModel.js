@@ -121,6 +121,11 @@ const QuotationSchema = new mongoose.Schema({
         ref: 'admin',
         required: true
     },
+    requestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'request',
+        required: true
+    },
     approvedOn: {
         type: Date,
     },

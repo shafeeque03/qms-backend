@@ -10,17 +10,29 @@ const RequestSchema = new mongoose.Schema({
     ref: "admin",
     required: true,
   },
-  isApproved:{
-    type: Boolean,
-    default: false
+  approveStatus:{
+    type: String,
+    default: 'pending'
   },
   requestId: {
     type: Number,
     required: true,
   },
   createdBy: {
-    
-  }
+    name:{
+        type:String,
+        required: true
+    },
+    email:{
+        type:String
+    },
+    isAdmin:{
+        type: Boolean
+    },
+    id:{
+        type: String
+    }
+}
 });
 
 export default mongoose.model("request", RequestSchema);
