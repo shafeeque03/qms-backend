@@ -13,6 +13,7 @@ import { sendWhatsAppMessage } from "../config/whatsAppConfig.js";
 import pdf from "html-pdf";
 import puppeteer from "puppeteer";
 import fetch from "node-fetch";
+import RequestModel from "../model/requestModel.js";
 
 const convertHtmlToPdf = async (htmlContent) => {
   const browser = await puppeteer.launch();
@@ -761,6 +762,13 @@ export const createQuotation = async (req, res) => {
       adminId,
     } = req.body;
 
+    let quotation = await Quotation.findOne({requestId:reqId});
+    if(quotation){
+      return res
+        .status(400)
+        .json({ message: "Quotation already created for this request" });
+    }
+
     // Input Validation
     if (products.length === 0 && services.length === 0) {
       return res
@@ -927,6 +935,7 @@ export const createQuotation = async (req, res) => {
     });
 
     const newQtn = await newQuotation.save();
+    await RequestModel.findByIdAndUpdate(reqId,{isQuotCreated:true});
 
     // await sendWhatsAppMessage(clientDetails, newQtn, adminName);
 

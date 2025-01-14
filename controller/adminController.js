@@ -36,25 +36,34 @@ export const changeRequestStatus = async(req,res)=>{
   }
 }
 
-export const fetchAllRequests = async(req, res) => {
+export const fetchAllRequests = async (req, res) => {
   try {
     const { adminId } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const search = req.query.search || '';
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const search = req.query.search?.trim() || '';
 
     if (!adminId) {
-      return res.status(400).json({ message: "adminId Required" });
+      return res.status(400).json({ message: "adminId is required" });
+    }
+
+    if (page < 1 || limit < 1) {
+      return res.status(400).json({ message: "Page and limit must be positive integers" });
     }
 
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
 
     // Build filter object
-    const filter = { adminIs: adminId };
+    const filter = { adminIs: adminId }; // Ensure this matches your schema
+
     if (search) {
-      // Assuming requestId is a number in your schema
-      filter.requestId = parseInt(search);
+      const isNumeric = /^\d+$/.test(search);
+      if (isNumeric) {
+        filter.requestId = parseInt(search, 10); // Exact match
+      } else {
+        return res.status(400).json({ message: "Search must be a numeric requestId" });
+      }
     }
 
     // Get total count for pagination
@@ -70,14 +79,15 @@ export const fetchAllRequests = async(req, res) => {
       requests,
       currentPage: page,
       totalPages: Math.ceil(totalCount / limit),
-      totalCount
+      totalCount,
     });
-
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({ message: "Server error" });
+    console.error("Error in fetchAllRequests:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 export const createRequestAdmin = async(req,res)=>{
   try {
