@@ -711,7 +711,7 @@ export const otpVerifying = async (req, res) => {
       await Admin.updateOne({ _id: adminId }, { $set: { isVerified: true } });
       res.status(200).json({
         status: true,
-        message: "User registration success, you can login now",
+        message: "Verification success",
       });
     } else {
       res.status(400).json({ message: "Incorrect OTP" });

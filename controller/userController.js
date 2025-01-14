@@ -339,7 +339,8 @@ export const fetchCompanies = async(req,res)=>{
 }
 
 export const addClient = async (req, res) => {
-  const { value, adminId } = req.body;
+  try {
+    const { value, adminId } = req.body;
   let client = await Client.create({
     name: value.name,
     email: value.email,
@@ -348,6 +349,11 @@ export const addClient = async (req, res) => {
     adminIs: adminId,
   });
   res.status(201).json({ client, message: "Client added" });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+  
 };
 
 export const getClients = async (req, res) => {
